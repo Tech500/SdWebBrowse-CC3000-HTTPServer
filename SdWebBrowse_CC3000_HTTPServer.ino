@@ -2,7 +2,7 @@
 
   ■   SDWebBrowse_CC3000_HTTPServer.ino     ■
   ■   Using Arduino Mega 2560  Rev. 3.0     ■
-  ■   Last modified 4/7/2015 @ 16:47 EST    ■
+  ■   Last modified 4/13/2015 @ 20:16 EST    ■
   ■   added file deletion                   ■
   
   ■ Modified by "Tech500" with the          ■ 
@@ -146,12 +146,12 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
 uint32_t ip = cc3000.IP2U32(192,168,1,71);
 //int port = 8889;									 
 										 
-#define WLAN_SSID       "Security"   // cannot be longer than 32 characters!
-#define WLAN_PASS       "09acdc7388"
+#define WLAN_SSID       "YourSSID"   // cannot be longer than 32 characters!
+#define WLAN_PASS       "YourNetworkPassword"
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
-#define LISTEN_PORT           8889      // What TCP port to listen on for connections.  
+#define LISTEN_PORT           8889    // What TCP port to listen on for connections.  
                                       // The HTTP protocol uses port 80 by default.
 
 #define MAX_ACTION            10      // Maximum length of the HTTP action that can be parsed.
@@ -297,17 +297,17 @@ void setup(void)
 		
 //Uncomment to set Real Time Clock --only needs to be run once
 
-
+/*
 	 //Set Time and Date of the DS1307 Real Time Clock
 	 RTCTimedEvent.time.second = 00;
-	 RTCTimedEvent.time.minute = 43;
-	 RTCTimedEvent.time.hour = 16;
+	 RTCTimedEvent.time.minute = 16;
+	 RTCTimedEvent.time.hour = 20;
 	 RTCTimedEvent.time.dayOfWeek  = 3;
-	 RTCTimedEvent.time.day = 7;
+	 RTCTimedEvent.time.day = 13;
 	 RTCTimedEvent.time.month = 4;
 	 RTCTimedEvent.time.year = 2015;
 	 RTCTimedEvent.writeRTC();
-    
+*/   
 
 	// uncomment for different initialization settings
 	//dps.init();     // QFE (Field Elevation above ground level) is set to 0 meters.
@@ -431,8 +431,17 @@ void loop()
             ((RTCTimedEvent.time.second) == 0))
     {
 	
-		fileStore();
-        newDay();
+		newDay();
+		
+		if ((RTCTimedEvent.time.dayOfWeek) == 7)
+		{
+			fileStore();
+		}
+		else
+		{
+			exit;
+		}
+		
     }
 
     //Write Data at 15 minute interval
@@ -1115,8 +1124,7 @@ void fileStore()
 {
 
 	//If 7th day of week, rename "log.txt" to ("log" + month + day + ".txt") and create new, empty "log.txt"
-	if (((RTCTimedEvent.time.dayOfWeek) == 7)  && ((RTCTimedEvent.time.hour) == 23) && ((RTCTimedEvent.time.minute) == 46) && ((RTCTimedEvent.time.second) == 0))   
-	{
+	
    		// create a file and write one line to the file
 		SdFile logFile("log.txt", O_WRITE | O_CREAT );
 		if (!logFile.isOpen()) 
@@ -1153,11 +1161,7 @@ void fileStore()
 		// list files
 		cout << pstr("------") << endl;
 		sd.ls(LS_R);
-	}
-	else
-	{
-		exit;
-	}
+	
 	
 }
 
