@@ -2,7 +2,7 @@
 
   ■   SDWebBrowse_CC3000_HTTPServer.ino     ■
   ■   Using Arduino Mega 2560  Rev. 3.0     ■
-  ■   Last modified 4/13/2015 @ 20:16 EST    ■
+  ■   Last modified 4/16/2015 @ 14:55 EST   ■
   ■   added file deletion                   ■
   
   ■ Modified by "Tech500" with the          ■ 
@@ -300,10 +300,10 @@ void setup(void)
 /*
 	 //Set Time and Date of the DS1307 Real Time Clock
 	 RTCTimedEvent.time.second = 00;
-	 RTCTimedEvent.time.minute = 16;
-	 RTCTimedEvent.time.hour = 20;
-	 RTCTimedEvent.time.dayOfWeek  = 3;
-	 RTCTimedEvent.time.day = 13;
+	 RTCTimedEvent.time.minute = 24;
+	 RTCTimedEvent.time.hour = 4;
+	 RTCTimedEvent.time.dayOfWeek  = 4;
+	 RTCTimedEvent.time.day = 14;
 	 RTCTimedEvent.time.month = 4;
 	 RTCTimedEvent.time.year = 2015;
 	 RTCTimedEvent.writeRTC();
@@ -763,7 +763,7 @@ void listen()   // Listen for client connection
 									if (pastPressure == currentPressure)
 									{
 										client.fastrprintln(F("...Unchanged     ,<br />"));
-									}  
+									}   
 									else
 									{
 										client.println(difference, 3);
@@ -781,9 +781,9 @@ void listen()   // Listen for client connection
 								client.fastrprint(F(" Feet<br />"));
 								client.fastrprintln(F("<br /><br />"));
 								client.fastrprintln(F("<h2>Collected Observations</h2>"));
-								client.println("<a href=http://192.168.1.71:8889/log.txt download>Download: Current Collected Observations</a><br />");
+								client.println("<a href=http:///log.txt download>Download: Current Collected Observations</a><br />");
 								client.fastrprintln(F("<br />\r\n"));
-								client.println("<a href=http://192.168.1.71:8889/SdBrowse >Download: Previous Collected Observations</a><br />");
+								client.println("<a href=http:///SdBrowse >Download: Previous Collected Observations</a><br />");
 								client.fastrprintln(F("<body />\r\n"));
 								client.fastrprintln(F("<br />\r\n"));
 								client.fastrprintln(F("</html>\r\n"));
