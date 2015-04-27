@@ -1,8 +1,8 @@
 /***************************************************
 
   ■   SDWebBrowse_CC3000_HTTPServer.ino     ■
-  ■   Using Arduino Mega 2560  Rev. 3.0     ■
-  ■   Last modified 4/23/2015 @ 13:15 EST   ■
+  ■   Using Arduino Mega 2560 --Rev. 9.0    ■
+  ■   Last modified 4/27/2015 @ 13:47 EST   ■
   ■   added file deletion                   ■
   
   ■ Modified by "Tech500" with the          ■ 
@@ -279,6 +279,7 @@ void setup(void)
 	httpServer.begin();
   
     getDateTime();
+	delay(500);
 	Serial.println("Connected to WLAN:  " + dtStamp);
 	Serial.println("");
 
@@ -303,10 +304,10 @@ void setup(void)
 /*
 	 //Set Time and Date of the DS1307 Real Time Clock
 	 RTCTimedEvent.time.second = 00;
-	 RTCTimedEvent.time.minute = 10;
-	 RTCTimedEvent.time.hour = 7;
-	 RTCTimedEvent.time.dayOfWeek  = 1;
-	 RTCTimedEvent.time.day = 19;
+	 RTCTimedEvent.time.minute = 39;
+	 RTCTimedEvent.time.hour = 13;
+	 RTCTimedEvent.time.dayOfWeek  = 2;
+	 RTCTimedEvent.time.day = 27;
 	 RTCTimedEvent.time.month = 4;
 	 RTCTimedEvent.time.year = 2015;
 	 RTCTimedEvent.writeRTC();
@@ -426,26 +427,21 @@ void loop()
     RTCTimedEvent.readRTC();
     delay(50);
 	
-	//Rename "log.txt" on 7th day of week and create new "log.txt" file
-    if (((RTCTimedEvent.time.day) == 7 ) &&
-	       ((RTCTimedEvent.time.hour) == 23 )  &&
-            ((RTCTimedEvent.time.minute) == 59) &&
-            ((RTCTimedEvent.time.second) == 58))
-    {
-		fileStore();
-	}
-	else
+	if (((RTCTimedEvent.time.day) == 07) && 
+		(((RTCTimedEvent.time.hour) == 23 )  &&
+		((RTCTimedEvent.time.minute) == 58) &&
+		((RTCTimedEvent.time.second) == 0)))
+		
+			{
+				fileStore();
+			}
+							
+		
+	//Collect  "log.txt" Data for one day
+	if ((((RTCTimedEvent.time.hour) == 0 )  &&
+			((RTCTimedEvent.time.minute) == 0) &&
+			((RTCTimedEvent.time.second) == 0)))
 	{
-		exit;
-	}	
-    
-
-    //Collect  "log.txt" Data for one day
-    if (((RTCTimedEvent.time.hour) == 0 )  &&
-            ((RTCTimedEvent.time.minute) == 0) &&
-            ((RTCTimedEvent.time.second) == 0))
-    {
-
 		newDay();
 	}
 
@@ -1109,7 +1105,7 @@ float updateDifference()  //Pressure difference for fifthteen minute interval
 void newDay()   //Collect Data for twenty-four hours; then start a new day
 {
 
-    
+	fileStore();
 	
 	//id = 1;   //Reset id for start of new day
     //Write logFile Header
@@ -1123,55 +1119,49 @@ void newDay()   //Collect Data for twenty-four hours; then start a new day
         logFile.close();
         Serial.println("Date, Time, Humidity, Dew Point, Temperature, Heat Index, in. Hg., Difference, millibars, atm, Altitude");
     }
-	
-	
-    
 }
 
 ////////////////
-void fileStore()
+void fileStore()   //If 7th day of week, rename "log.txt" to ("log" + month + day + ".txt") and create new, empty "log.txt"
 {
 
-	//If 7th day of week, rename "log.txt" to ("log" + month + day + ".txt") and create new, empty "log.txt"
+	// create a file and write one line to the file
+	SdFile logFile("log.txt", O_WRITE | O_CREAT );
+	if (!logFile.isOpen()) 
+	{
+		error("log -open");
+	}
+   
+	// rename the file log.txt
+	// sd.vwd() is the volume working directory, root.
 	
-		// create a file and write one line to the file
-		SdFile logFile("log.txt", O_WRITE | O_CREAT );
-		if (!logFile.isOpen()) 
-		{
-			error("log -open");
-		}
-	   
-		// rename the file log.txt
-		// sd.vwd() is the volume working directory, root.
-		
-		logFileName = "";	
-		logFileName = "log";
-		logFileName	+= (RTCTimedEvent.time.month);
-		logFileName += (RTCTimedEvent.time.day);
-		logFileName += ".txt";
-		//Serial.println(logFileName.c_str());
-		
-		if(!sd.exists("log.txt"))
-		{ 
-			exit;
-		}
-		else
-		{
-			logFile.rename(sd.vwd(), logFileName.c_str());
-			logFile.close();
-		}
-
-		// create a new "log.txt" file for appended writing
-		logFile.open("log.txt", O_WRITE | O_CREAT | O_APPEND);
-		logFile.println("");
+	logFileName = "";	
+	logFileName = "log";
+	logFileName	+= (RTCTimedEvent.time.month);
+	logFileName += (RTCTimedEvent.time.day);
+	logFileName += ".txt";
+	//Serial.println(logFileName.c_str());
+	
+	if(!sd.exists("log.txt"))
+	{ 
+		exit;
+	}
+	else
+	{
+		logFile.rename(sd.vwd(), logFileName.c_str());
 		logFile.close();
-		Serial.println("Finished");
+	}
+
+	// create a new "log.txt" file for appended writing
+	logFile.open("log.txt", O_WRITE | O_CREAT | O_APPEND);
+	logFile.println("");
+	logFile.close();
+	Serial.println("Finished");
+	
+	// list files
+	cout << pstr("------") << endl;
+	sd.ls(LS_R);
 		
-		// list files
-		cout << pstr("------") << endl;
-		sd.ls(LS_R);
-	
-	
 }
 
 /////////////////////
