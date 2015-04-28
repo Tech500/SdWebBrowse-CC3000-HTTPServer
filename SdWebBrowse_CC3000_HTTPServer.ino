@@ -2,7 +2,7 @@
 
   ■   SDWebBrowse_CC3000_HTTPServer.ino     ■
   ■   Using Arduino Mega 2560 --Rev. 9.0    ■
-  ■   Last modified 4/27/2015 @ 13:47 EST   ■
+  ■   Last modified 4/28/2015 @ 09:08 EST   ■
   ■   added file deletion                   ■
   
   ■ Modified by "Tech500" with the          ■ 
@@ -144,7 +144,7 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
 										 
 // Local server IP, port
 uint32_t ip = cc3000.IP2U32(192,168,1,71);
-//int port = 8889;									 
+								 
 										 
 #define WLAN_SSID       "Security"   // cannot be longer than 32 characters!
 #define WLAN_PASS       "09acdc7388"
@@ -301,17 +301,17 @@ void setup(void)
 		
 //Uncomment to set Real Time Clock --only needs to be run once
 
-/*
+
 	 //Set Time and Date of the DS1307 Real Time Clock
 	 RTCTimedEvent.time.second = 00;
-	 RTCTimedEvent.time.minute = 39;
-	 RTCTimedEvent.time.hour = 13;
-	 RTCTimedEvent.time.dayOfWeek  = 2;
-	 RTCTimedEvent.time.day = 27;
+	 RTCTimedEvent.time.minute = 17;
+	 RTCTimedEvent.time.hour = 9;
+	 RTCTimedEvent.time.dayOfWeek  = 3;
+	 RTCTimedEvent.time.day = 28;
 	 RTCTimedEvent.time.month = 4;
 	 RTCTimedEvent.time.year = 2015;
 	 RTCTimedEvent.writeRTC();
-*/	 
+	 
 
 	// uncomment for different initialization settings
 	//dps.init();     // QFE (Field Elevation above ground level) is set to 0 meters.
@@ -427,31 +427,21 @@ void loop()
     RTCTimedEvent.readRTC();
     delay(50);
 	
-	if (((RTCTimedEvent.time.day) == 07) && 
-		(((RTCTimedEvent.time.hour) == 23 )  &&
+	//Collect  "log.txt" Data for one day; do it early so day of week still equals 7
+	if ((((RTCTimedEvent.time.hour) == 23 )  &&
 		((RTCTimedEvent.time.minute) == 58) &&
-		((RTCTimedEvent.time.second) == 0)))
-		
-			{
-				fileStore();
-			}
-							
-		
-	//Collect  "log.txt" Data for one day
-	if ((((RTCTimedEvent.time.hour) == 0 )  &&
-			((RTCTimedEvent.time.minute) == 0) &&
-			((RTCTimedEvent.time.second) == 0)))
-	{
-		newDay();
-	}
+		((RTCTimedEvent.time.second) == 59)))
+		{
+			newDay();
+		}
 
     //Write Data at 15 minute interval
 
-    if (    (((RTCTimedEvent.time.minute) == 0)||
-             ((RTCTimedEvent.time.minute) == 15)||
-             ((RTCTimedEvent.time.minute) == 30)||
-             ((RTCTimedEvent.time.minute) == 45))
-            && ((RTCTimedEvent.time.second) == 00))
+    if ((((RTCTimedEvent.time.minute) == 0)||
+		((RTCTimedEvent.time.minute) == 15)||
+		((RTCTimedEvent.time.minute) == 30)||
+		((RTCTimedEvent.time.minute) == 45))
+		&& ((RTCTimedEvent.time.second) == 00))
     {
 
         getDateTime();
@@ -1104,9 +1094,15 @@ float updateDifference()  //Pressure difference for fifthteen minute interval
 /////////////
 void newDay()   //Collect Data for twenty-four hours; then start a new day
 {
-
-	fileStore();
-	
+	if (((RTCTimedEvent.time.dayOfWeek) == 7) && 
+		((RTCTimedEvent.time.hour) == 23) &&
+		((RTCTimedEvent.time.minute) == 58) &&
+		((RTCTimedEvent.time.second) == 59))
+		{
+			delay(1000);
+			fileStore();
+		}
+    	
 	//id = 1;   //Reset id for start of new day
     //Write logFile Header
 	
