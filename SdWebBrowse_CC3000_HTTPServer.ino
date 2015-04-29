@@ -1,9 +1,9 @@
 /***************************************************
 
   ■   SDWebBrowse_CC3000_HTTPServer.ino     ■
-  ■   Using Arduino Mega 2560 --Rev. 9.0    ■
-  ■   Last modified 4/28/2015 @ 09:08 EST   ■
-  ■   added file deletion                   ■
+  ■   Using Arduino Mega 2560 --Rev. 10.0   ■
+  ■   Last modified 4/29/2015 @ 15:46 EST   ■
+  ■   corrected fileStore function          ■
   
   ■ Modified by "Tech500" with the          ■ 
   ■ help of "Adafruit Forum"                ■
@@ -60,7 +60,17 @@
   Written by Limor Fried & Kevin Townsend for Adafruit Industries.  
   BSD license, all text above must be included in any redistribution      
  ****************************************************/
-#include <Adafruit_CC3000.h>   //https://github.com/adafruit/Adafruit_CC3000_Library
+// ********************************************************************************
+//
+//   See invidual downloads for each libraries license.
+//	 
+//	 Following code was developed by merging library examples, adding
+//	 logic for sketch flow.
+//	 
+// *********************************************************************************	 
+ 
+ 
+ #include <Adafruit_CC3000.h>   //https://github.com/adafruit/Adafruit_CC3000_Library
 //#include <ccspi.h>
 #include "utility/debug.h"   //https://github.com/adafruit/Adafruit_CC3000_Library
 #include <SdFat.h>   //https://github.com/greiman/SdFat
@@ -301,17 +311,17 @@ void setup(void)
 		
 //Uncomment to set Real Time Clock --only needs to be run once
 
-
+/*
 	 //Set Time and Date of the DS1307 Real Time Clock
 	 RTCTimedEvent.time.second = 00;
-	 RTCTimedEvent.time.minute = 17;
-	 RTCTimedEvent.time.hour = 9;
-	 RTCTimedEvent.time.dayOfWeek  = 3;
-	 RTCTimedEvent.time.day = 28;
+	 RTCTimedEvent.time.minute = 46;
+	 RTCTimedEvent.time.hour = 15;
+	 RTCTimedEvent.time.dayOfWeek  = 4;
+	 RTCTimedEvent.time.day = 29;
 	 RTCTimedEvent.time.month = 4;
 	 RTCTimedEvent.time.year = 2015;
 	 RTCTimedEvent.writeRTC();
-	 
+*/ 
 
 	// uncomment for different initialization settings
 	//dps.init();     // QFE (Field Elevation above ground level) is set to 0 meters.
@@ -429,7 +439,7 @@ void loop()
 	
 	//Collect  "log.txt" Data for one day; do it early so day of week still equals 7
 	if ((((RTCTimedEvent.time.hour) == 23 )  &&
-		((RTCTimedEvent.time.minute) == 58) &&
+		((RTCTimedEvent.time.minute) == 59) &&
 		((RTCTimedEvent.time.second) == 59)))
 		{
 			newDay();
@@ -1096,7 +1106,7 @@ void newDay()   //Collect Data for twenty-four hours; then start a new day
 {
 	if (((RTCTimedEvent.time.dayOfWeek) == 7) && 
 		((RTCTimedEvent.time.hour) == 23) &&
-		((RTCTimedEvent.time.minute) == 58) &&
+		((RTCTimedEvent.time.minute) == 59) &&
 		((RTCTimedEvent.time.second) == 59))
 		{
 			delay(1000);
@@ -1110,6 +1120,7 @@ void newDay()   //Collect Data for twenty-four hours; then start a new day
 	SdFile logFile("log.txt", O_WRITE | O_CREAT | O_APPEND);
 	if (!logFile.isOpen()) error("log");
 	{
+		delay(1000);
         logFile.println(", , , , , ,"); //Just a leading blank line, in case there was previous data
         logFile.println("Date, Time, Humidity, Dew Point, Temperature, Heat Index, in. Hg., Difference, millibars, atm, Altitude");
         logFile.close();
