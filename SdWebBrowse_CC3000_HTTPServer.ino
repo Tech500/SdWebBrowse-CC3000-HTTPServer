@@ -1,12 +1,12 @@
 /***************************************************
 
-  ■   SDWebBrowse_CC3000_HTTPServer.ino     ■
-  ■   Using Arduino Mega 2560 --Rev. 15.0   ■
-  ■   Last modified 10/3/2015 @ 18:26 EST   ■
+  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■
+  ■ Using Arduino Mega 2560 --Rev. 15.0     ■
+  ■ Last modified 10/09/2015 @ 16:10 EST    ■
   ■                                         ■
-  ■                                         ■
-  ■ Modified by "Tech500" with the          ■ 
-  ■ help of "Adafruit Forum"                ■
+  ■ Uses Adafruit CC3000 Shield --          ■
+  ■ Modified Sketch by "Tech500" with       ■ 
+  ■ help from "Adafruit Forum"              ■
  
     
 ****************************************************/
@@ -105,7 +105,7 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
                                          SPI_CLOCK_DIVIDER); // you can change this clock speed
                      
 // Local server IP, port
-uint32_t ip = cc3000.IP2U32(192,168,1,15);
+uint32_t ip = cc3000.IP2U32(192,168,1,14);
                  
                      
 #define WLAN_SSID       "HOME-CF76-2.4"   // cannot be longer than 32 characters!
@@ -296,7 +296,7 @@ void setup(void)
 
   getBMP085();
   
-  lcdDisplay();      //   LCD 1602 Display function --used for inital display
+  //lcdDisplay();      //   LCD 1602 Display function --used for inital display
 
 }
 
@@ -370,28 +370,10 @@ char ListFiles(Adafruit_CC3000_ClientRef client, uint8_t flags, SdFile dir) {
 ///////////
 void loop()
 {
-    
-  //  check wlan connective --if needed re-establish wireless connection
-
-    if (!cc3000.checkConnected())      // make sure still connected to wireless network
-    {
-	
-		reConnect = "";
-		Serial.println("Loop #1");
-		reConnect = "Loop #1";
-	
-        if (!init_network())    // reconnect to WLAN
-        {
-            delay(15 * 1000); // if no connection, try again later
-            return;
-        }
-		
-		
-		
-  }
-
-
-  RTCTimedEvent.loop();
+   
+   fileDownload = 0;	
+   
+    RTCTimedEvent.loop();
     delay(50);
     RTCTimedEvent.readRTC();
     delay(50);
@@ -434,6 +416,26 @@ void loop()
     }
     else
     {
+	
+	//  check wireless lan connective --if needed re-establish connection
+
+    if (!cc3000.checkConnected())      // make sure still connected to wireless network
+    {
+	
+		reConnect = "";
+		Serial.println("Loop #1");
+		reConnect = "Loop #1";
+	
+        if (!init_network())    // reconnect to WLAN
+        {
+            delay(15 * 1000); // if no connection, try again later
+            return;
+        }
+		
+		
+		
+	}
+	
     listen();  //Listen for web client
     }
 
@@ -567,7 +569,7 @@ void listen()   // Listen for client connection
 
   fileDownload = 0;   //No file being downloaded
   
-  //  check wlan connective --if needed re-establish 
+  //  check wireless lan connective --if needed re-establish connection
 
     if (!cc3000.checkConnected())      // make sure still connected to wireless network
     {
@@ -664,7 +666,7 @@ void listen()   // Listen for client connection
 					  
 			  client.println("HTTP/1.1 200 OK"); //send new page
 				client.println("Content-Type: image/ico");
-				client.println();
+				client.println(); 
 			  
 			  // Open "FAVICON.ICO for reading
 			  SdFile webFile;
@@ -772,8 +774,8 @@ void listen()   // Listen for client connection
 					}
 				  					
                 }
-                          
-                getDateTime();
+				
+				getDateTime();
 
                 // First send the success response code.
                 client.fastrprintln(F("HTTP/1.1 200 OK"));
@@ -1233,10 +1235,10 @@ void newDay()   //Collect Data for twenty-four hours; then start a new day
 {
   if (((RTCTimedEvent.time.dayOfWeek) == 7) && 
     ((RTCTimedEvent.time.hour) == 23) &&
-    ((RTCTimedEvent.time.minute) == 59) &&
-    ((RTCTimedEvent.time.second) == 59))
+    ((RTCTimedEvent.time.minute) == 58) &&
+    ((RTCTimedEvent.time.second) == 05))
     {
-      delay(1000);
+      //delay(1000);
       fileStore();
     }
       
@@ -1324,8 +1326,6 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
       Serial.println("Couldn't open server file");
     }
     
-    serverFile.close();
-
     // Set up the CC3000, connect to the access point, and get an IP address.
 
     if (!cc3000.begin() )
@@ -1349,7 +1349,7 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 
     delay(15 * 1000);
 
-    Serial.println(F("Connected to Wireless Network!"));
+    Serial.println(F("Connecting to Wireless Network!"));
     Serial.println(F("Request DHCP..."));
 
     while (!cc3000.checkDHCP())
