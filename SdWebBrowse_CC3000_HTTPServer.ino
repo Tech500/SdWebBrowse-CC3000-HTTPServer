@@ -371,7 +371,7 @@ char ListFiles(Adafruit_CC3000_ClientRef client, uint8_t flags, SdFile dir) {
 void loop()
 {
 
-	//  check wireless lan connective --if needed re-establish connection
+    //  check wireless lan connective --if needed re-establish connection
 
     if (!cc3000.checkConnected())      // make sure still connected to wireless network
     {
@@ -385,7 +385,7 @@ void loop()
             delay(15 * 1000); // if no connection, try again later
             return;
         }
-	}
+     }
    
    fileDownload = 0;	
    
