@@ -839,9 +839,10 @@ void listen()   // Listen for client connection
                 client.fastrprint(F(" Feet<br />"));
                 client.fastrprintln(F("<br /><br />"));
                 client.fastrprintln(F("<h2>Collected Observations</h2>"));
-                client.println("<a href=http://yourip and port/log.txt download>Download: Current Collected Observations</a><br />");
+                client.println("<a href=http://your external ip and port/log.txt download>Download: Current Collected Observations</a><br />");
                 client.fastrprintln(F("<br />\r\n"));
-                client.println("<a href=http://your ip and port/SdBrowse >Download: Previous Collected Observations</a><br />");
+                //Must modify next line with your extenal ip and port.  Port is assigned port in this sketch.
+                client.println("<a href=http://your external ip and port/SdBrowse >Download: Previous Collected Observations</a><br />");
                 client.fastrprintln(F("<body />\r\n"));
                 client.fastrprintln(F("<br />\r\n"));
                 client.fastrprintln(F("</html>\r\n"));
