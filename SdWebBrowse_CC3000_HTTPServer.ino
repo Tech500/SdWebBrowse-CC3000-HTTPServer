@@ -242,7 +242,7 @@ void setup(void)
   
     getDateTime();
   delay(500);
-  Serial.println("Connected to WLAN:  " + dtStamp);
+  Serial.println("Connected to Wireless LAN:  " + dtStamp);
   Serial.println("");
 
   Serial.println(F("Listening for connections..."));
@@ -370,6 +370,22 @@ char ListFiles(Adafruit_CC3000_ClientRef client, uint8_t flags, SdFile dir) {
 ///////////
 void loop()
 {
+
+	//  check wireless lan connective --if needed re-establish connection
+
+    if (!cc3000.checkConnected())      // make sure still connected to wireless network
+    {
+	
+		reConnect = "";
+		Serial.println("Loop #1");
+		reConnect = "Loop #1";
+	
+        if (!init_network())    // reconnect to WLAN
+        {
+            delay(15 * 1000); // if no connection, try again later
+            return;
+        }
+	}
    
    fileDownload = 0;	
    
@@ -416,27 +432,7 @@ void loop()
     }
     else
     {
-	
-	//  check wireless lan connective --if needed re-establish connection
-
-    if (!cc3000.checkConnected())      // make sure still connected to wireless network
-    {
-	
-		reConnect = "";
-		Serial.println("Loop #1");
-		reConnect = "Loop #1";
-	
-        if (!init_network())    // reconnect to WLAN
-        {
-            delay(15 * 1000); // if no connection, try again later
-            return;
-        }
-		
-		
-		
-	}
-	
-    listen();  //Listen for web client
+		listen();  //Listen for web client
     }
 
 }
@@ -839,9 +835,9 @@ void listen()   // Listen for client connection
                 client.fastrprint(F(" Feet<br />"));
                 client.fastrprintln(F("<br /><br />"));
                 client.fastrprintln(F("<h2>Collected Observations</h2>"));
+                //Must modify next line with external ip and port.  Port is assined port in this sketch
                 client.println("<a href=http://your external ip and port/log.txt download>Download: Current Collected Observations</a><br />");
                 client.fastrprintln(F("<br />\r\n"));
-                //Must modify next line with your extenal ip and port.  Port is assigned port in this sketch.
                 client.println("<a href=http://your external ip and port/SdBrowse >Download: Previous Collected Observations</a><br />");
                 client.fastrprintln(F("<body />\r\n"));
                 client.fastrprintln(F("<br />\r\n"));
@@ -1237,10 +1233,9 @@ void newDay()   //Collect Data for twenty-four hours; then start a new day
   if (((RTCTimedEvent.time.dayOfWeek) == 7) && 
     ((RTCTimedEvent.time.hour) == 23) &&
     ((RTCTimedEvent.time.minute) == 58) &&
-    ((RTCTimedEvent.time.second) == 05))
+    ((RTCTimedEvent.time.second) == 00))
     {
-      //delay(1000);
-      fileStore();
+       fileStore();
     }
       
   //id = 1;   //Reset id for start of new day
