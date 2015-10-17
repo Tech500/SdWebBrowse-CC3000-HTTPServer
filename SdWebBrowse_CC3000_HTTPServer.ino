@@ -839,9 +839,9 @@ void listen()   // Listen for client connection
                 client.fastrprint(F(" Feet<br />"));
                 client.fastrprintln(F("<br /><br />"));
                 client.fastrprintln(F("<h2>Collected Observations</h2>"));
-                client.println("<a href=http://68.45.231.214:7388/log.txt download>Download: Current Collected Observations</a><br />");
+                client.println("<a href=http://yourip and port/log.txt download>Download: Current Collected Observations</a><br />");
                 client.fastrprintln(F("<br />\r\n"));
-                client.println("<a href=http://68.45.231.214:7388/SdBrowse >Download: Previous Collected Observations</a><br />");
+                client.println("<a href=http://your ip and port/SdBrowse >Download: Previous Collected Observations</a><br />");
                 client.fastrprintln(F("<body />\r\n"));
                 client.fastrprintln(F("<br />\r\n"));
                 client.fastrprintln(F("</html>\r\n"));
