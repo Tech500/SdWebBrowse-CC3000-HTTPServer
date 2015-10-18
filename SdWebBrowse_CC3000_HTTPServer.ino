@@ -1,8 +1,8 @@
 /***************************************************
 
   ■ SDWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Using Arduino Mega 2560 --Rev. 15.0     ■
-  ■ Last modified 10/09/2015 @ 16:10 EST    ■
+  ■ Using Arduino Mega 2560 --Rev. 16.0     ■
+  ■ Last modified 10/18/2015 @ 08:09 EST    ■
   ■                                         ■
   ■ Uses Adafruit CC3000 Shield --          ■
   ■ Modified Sketch by "Tech500" with       ■ 
@@ -21,7 +21,6 @@
  
  
 #include <Adafruit_CC3000.h>   //https://github.com/adafruit/Adafruit_CC3000_Library
-//#include <ccspi.h>
 #include "utility/debug.h"   //https://github.com/adafruit/Adafruit_CC3000_Library
 #include <SdFat.h>   //https://github.com/greiman/SdFat
 #include <SdFile.h>   //https://github.com/greiman/SdFat
@@ -371,7 +370,7 @@ char ListFiles(Adafruit_CC3000_ClientRef client, uint8_t flags, SdFile dir) {
 void loop()
 {
 
-    //  check wireless lan connective --if needed re-establish connection
+	//  check wireless lan connective --if needed re-establish connection
 
     if (!cc3000.checkConnected())      // make sure still connected to wireless network
     {
@@ -385,7 +384,7 @@ void loop()
             delay(15 * 1000); // if no connection, try again later
             return;
         }
-     }
+	}
    
    fileDownload = 0;	
    
@@ -499,7 +498,6 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
 		logFile.println();
 		//Increment Record ID number
 		//id++;
-		getDateTime();
 		Serial.println("Data written to logFile  " + dtStamp);
 		logFile.close();
 		
@@ -835,10 +833,9 @@ void listen()   // Listen for client connection
                 client.fastrprint(F(" Feet<br />"));
                 client.fastrprintln(F("<br /><br />"));
                 client.fastrprintln(F("<h2>Collected Observations</h2>"));
-                //Must modify next line with external ip and port.  Port is assined port in this sketch
-                client.println("<a href=http://your external ip and port/log.txt download>Download: Current Collected Observations</a><br />");
+                client.println("<a href=http://68.45.231.214:7388/log.txt download>Download: Current Collected Observations</a><br />");
                 client.fastrprintln(F("<br />\r\n"));
-                client.println("<a href=http://your external ip and port/SdBrowse >Download: Previous Collected Observations</a><br />");
+                client.println("<a href=http://68.45.231.214:7388/SdBrowse >Download: Previous Collected Observations</a><br />");
                 client.fastrprintln(F("<body />\r\n"));
                 client.fastrprintln(F("<br />\r\n"));
                 client.fastrprintln(F("</html>\r\n"));
