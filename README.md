@@ -1,8 +1,5 @@
-DIY Datalogger combined with HTTPWeb server
-
-by tech500 
-
-SdWebBrowse_Ethernet_WEBServer.ino is a datalogger and web server. Revision 21 of Sketch.
+DIY Datalogger combined with HTTPWeb server:  SdWebBrowse_Ethernet_WEBServer.ino is a datalogger and web server. 
+Revision 21 of Sketch.
 
 Requires Arduino Mega 2560, Ethernet Shield and Real time clock, and Sensors for Humidity/Temperature and Barometric pressure.
 
@@ -29,9 +26,9 @@ Features:
 
 8. URL file names other than ones defined in the Sketch produce "404 Page not found."
 
-9 Audible alert from Piezo electric buzzer when there is Barometric Pressure difference of .020 inches of Mercury.  
-I am interested in sudden drop of Barometric pressure in a 15 minute interval. Serve weather more likely with a sudden 
-drop.  Difference of .020 inches of Mercury point is set for my observations to log and sound audible alert; not based 
-on any known value to be associated with serve weather.
+    9 Audible alert from Piezo electric buzzer when there is Barometric Pressure difference of .020 inches of Mercury.  
+    I am interested in sudden drop of Barometric pressure in a 15 minute interval. Serve weather more likely with a sudden 
+    drop.  Difference of .020 inches of Mercury point is set for my observations to log and sound audible alert; not based 
+    on any known value to be associated with serve weather.
 
 10. Two-line LCD Display of Barometric Pressure in both inches of Mercury and millibars.
