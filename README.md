@@ -32,3 +32,4 @@ Features:
     on any known value to be associated with serve weather.
 
 10. Two-line LCD Display of Barometric Pressure in both inches of Mercury and millibars.
+   
