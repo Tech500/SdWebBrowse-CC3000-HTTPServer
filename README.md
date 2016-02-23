@@ -1,5 +1,5 @@
 DIY Datalogger combined with HTTPWeb server:  SdWebBrowse_Ethernet_WEBServer.ino is a datalogger and web server. 
-Revision 21 of Sketch.
+Revision 30.1 of Sketch.
 
 Requires Arduino Mega 2560, Ethernet Shield and Real time clock, and Sensors for Humidity/Temperature and Barometric pressure.
 
@@ -33,3 +33,6 @@ on any known value to be associated with serve weather.
 
 10. Two-line LCD Display of Barometric Pressure in both inches of Mercury and millibars.
    
+11. Added "SwitchDoc Labs, Dual Watchdog Timer" to project; resets Arduino Mega in case sketch execution fails..
+
+12. Added a 74HC73, JK Flip-flop to log "Dual Watchdog Timer" reset to file on SD Card.
