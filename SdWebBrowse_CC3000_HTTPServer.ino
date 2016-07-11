@@ -1,8 +1,8 @@
 /***************************************************
 
-  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Using Arduino Mega 2560 --Updated--     ■
-  ■ Last modified 06/23/2016 @ 13:32 EST    ■
+  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■                           Updated 07/10/2016 @ 00:07 EST
+  ■ Using Arduino Mega 2560 --Updated--     ■                                with fileRead function
+  ■ Last modified 07/10/2016 @ 00:07 EST    ■
   ■                                         ■
   ■ Uses Adafruit CC3000 Shield --          ■
   ■ Modified Sketch by "Tech500" with       ■ 
@@ -86,8 +86,22 @@
 	float currentPressure;  //Present pressure reading used to find pressure change difference.
 	float pastPressure;  //Previous pressure reading used to find pressure change difference.
 	float milliBars;
+	
 	float difference;
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//  Updated 7/3/2016
+//
+//  When using SwitchDoc Labs, "Dual Watchdog Time" >> After uploading Sketch; open Serial Monitor,  
+//  this will result in a "Starting Server" in the Serial Monitor output.  Pressing the red reset button will 
+//  produce a Serial Monitor ouput of "Starting Server."  Any reset caused by SwitchDoc Labs, "Dual Watchdog Timer" 
+//  will print "Watchdog" in the Serial Monitor output.  All resets are logged to "Server.txt" on the SD Card.
+//
+//  "Server.txt," Identifies RESET and includes date and time occurred.
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	#define RESET_WATCHDOG1 6  //SwitchDoc Labs external Watchdog Dual Timer
 	#define Q 31 //74LS73 Q --Red
 	#define RESET 34  //74LS73 RESET --Yellow
@@ -123,8 +137,8 @@
 	uint32_t ip = cc3000.IP2U32(10,0,0,15);
 			  
 				 
-	#define WLAN_SSID       "Security"   // cannot be longer than 32 characters!
-	#define WLAN_PASS       "09acdc7388"
+	#define WLAN_SSID       "Security-22"   // cannot be longer than 32 characters!
+	#define WLAN_PASS       "1048acdc7388"
 	// Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 	#define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -186,8 +200,6 @@ void setup(void)
 	Serial.begin(115200);
 
 	pinMode(sonalertPin, OUTPUT);  //Used for Piezo buzzer
-
-	pinMode(Q, INPUT);  //Pin monitoring status of 74HC73, J-K Flip-flop
 
 	Wire.begin();
 
@@ -270,58 +282,60 @@ void setup(void)
 	getDateTime();
 	delay(500);
 
-	//Serial.println("Connected to Wireless LAN:  " + dtStamp);
-	Serial.println("");
-	Serial.println(F("Listening for connections..."));
-
 	/////////////// J-K Flip-Flop //////////
-	value = digitalRead(Q); 
 	delay(2500);
-
-	if((value) == 1)  
+	pinMode(Q, INPUT);  //Pin monitoring status of 74HC73, J-K Flip-flop
+	value = digitalRead(Q);
+	delay(250);	
+	
+	if((value) == 1) 
 	{
 
-		//Creates an entry in "Server.txt" for every RESET caused by "Dual Watchdog Timer"
+		//Creates an entry in "Server.txt" for every RESET cause by "Dual Watchdog Timer"
 		SdFile serverFile;
 		serverFile.open("Server.txt", O_RDWR | O_CREAT | O_APPEND);
-		  
-		if (!serverFile.isOpen()) error("Watchdog Start Server");
+		   
+		if (!serverFile.isOpen()) error("Watchdog Starting Server");
 
-		serverFile.println("Watchdog Reset of Server:  " + dtStamp);
+		serverFile.println("Watchdog Starting Server:  " + dtStamp);
 		serverFile.close();
-		Serial.print("Watchdog Reset  ");
+		Serial.print("Watchdog  ");
 		Serial.println(dtStamp + "  ");
+		//Serial.println(value);
 
 		//Sends LOW to RESET of the 74HC73, J-K Flip-flop 
 		digitalWrite(RESET, LOW);
-		delay(500);  //May double delay
+		delay(500);   
 		digitalWrite(RESET, HIGH);
+
 
 	}
 	else if((value) == 0)
 	{
 
 		//Creates an entry in "Server.txt" for every RESET; caused by opening Serial Monitor
-		//or pressing RESET switch.
 		SdFile serverFile;
 		serverFile.open("Server.txt", O_RDWR | O_CREAT | O_APPEND);
+		 
+		if (!serverFile.isOpen()) error("Starting Server");
 
-		if (!serverFile.isOpen()) error("Manual Start Server");
-
-		serverFile.println("Manual Reset of Server:  " + dtStamp);
+		serverFile.println("Starting Server:  " + dtStamp);
 		serverFile.close();  
-		Serial.print("Manual Reset ");
+		Serial.print("Starting Server  ");
 		Serial.println(dtStamp + "  ");
+		//Serial.println(value);
 
 		//Sends LOW to RESET of the 74HC73, J-K Flip-flop 
 		digitalWrite(RESET, LOW);
-		delay(500);  //May double delay
+		delay(500);  
 		digitalWrite(RESET, HIGH);
 
 	}
 
-	Serial.end();
+	Serial.println(F("Listening for connections..."));
 
+	Serial.end();
+ 
 
 	//Uncomment to set Real Time Clock --only needs to be run once
 
@@ -712,7 +726,7 @@ void listen()   // Listen for client connection
 		             
 			
 			// Check the action to see if it was a GET request.
-			if ((strcmp(path, "/Weather") == 0))   // Respond with the path that was accessed.                                                         
+			if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.                                                        
 			{ 
 
 				//  check wlan connective --if needed re-establish wlan connection
@@ -764,9 +778,6 @@ void listen()   // Listen for client connection
 				client.fastrprintln(F("Temperature:  "));
 				client.print(f);
 				client.fastrprint(F(" F.<br />"));
-				// Reading temperature or humidity takes about 250 milliseconds!
-				// Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-				delay(500);
 				client.fastrprintln(F("Heat Index:  "));
 				client.print(hi);
 				client.fastrprint(F(" F. <br />"));
@@ -804,10 +815,6 @@ void listen()   // Listen for client connection
 				client.fastrprintln(F("<br />\r\n"));
 				client.fastrprintln(F("</html>\r\n"));
 
-				delay(500);
-
-
-
 			} 
 			// Check the action to see if it was a GET request.
 			else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.  
@@ -837,7 +844,7 @@ void listen()   // Listen for client connection
 				client.println("<body>\r\n"); 
 				client.println("<head><title>SDBrowse</title><head />");
 				// print all the files, use a helper to keep it clean
-				client.println("<h2>Files:</h2>");
+				client.println("<h2>Server Files:</h2>");
 				ListFiles(client, LS_SIZE, root);
 				client.println("<body />\r\n");
 				client.println("<br />\r\n");
@@ -845,37 +852,31 @@ void listen()   // Listen for client connection
 
 				delay(500);
 
-				//exit;
-
 			}   
-			else if((strncmp(path, "/log.txt", 7) == 0) || (strncmp(path, "/LOG", 4) == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0) || (strcmp(path, "/WATCHDOG.TXT") == 0)) // Respond with the path that was accessed. 
+			else if((strncmp(path, "/log.txt", 7) == 0) || (strncmp(path, "/LOG", 4) == 0) ||  (strcmp(path, "/ACCESS.TXT") == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0)) // Respond with the path that was accessed. 
 			{ 
 			
 				fileDownload = 1;   //File download has started; used to stop logFile from logging during download
-
-				//static char MyBuffer[13];
 
 				char *filename;
 				char name;
 				strcpy( MyBuffer, path );
 				filename = &MyBuffer[1];
 				  
-					if ((strncmp(path, "/FAVICON.ICO", 12) == 0) || (strncmp(path, "/SYSTEM~1", 9) == 0))
+					if ((strncmp(path, "/FAVICON.ICO", 12) == 0) || (strncmp(path, "/SYSTEM~1", 9) == 0) || (strcmp(path, "/ACCESS.TXT") == 0))
 					{
 					
 						client.println("HTTP/1.1 404 Not Found");
 						client.println("Content-Type: text/html");
 						client.println();
+						client.println("<h2>404</h2>");
 						client.println("<h2>File Not Found!</h2>");
-						client.println("<br><h1>Couldn't open the File!</h3>");
-												
+						
 					}
-					//exit;
-				
-					client.println("HTTP/1.1 200 OK");
-
-					if(file.isDir()) 
+					else if(file.isDir()) 
 					{
+						
+						client.println("HTTP/1.1 200 OK");
 						client.println("Content-Type: text/html");
 						client.println();
 						client.print("<h2>Files in /");
@@ -884,33 +885,44 @@ void listen()   // Listen for client connection
 						ListFiles(client,LS_SIZE,file); 
 						file.close();
 					}
-					else  
+					else 
 					{
 
-						//client.println("Content-Type: text/plain");
+						client.println("HTTP/1.1 200 OK");
 						client.println("Content-Type: text/plain");
 						client.println("Content-Disposition: attachment");
 						client.println("Content-Length:");
 						client.println();
+						
+						fileDownload = 1;   //File download has started
 
 						readFile();
+						
 					}
 					
 			} 
 			// Check the action to see if it was a GET request.
-			else if ((strcmp(path, "/ACCESS.TXT") == 0))   // Respond with the path that was accessed.                                                         
-			{ 
+			else if (strncmp(path, "/lucid", 6) == 0) // Respond with the path that was accessed.    
+			{         
+				
+				//Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in 
+				//404 File not Found!  
+				
+				char *filename = "/ACCESS.TXT";
+				strcpy(MyBuffer, filename);
+																
+					// send a standard http response header
+					client.println("HTTP/1.1 200 OK");
+					client.println("Content-Type: text/plain");
+					client.println("Content-Disposition: attachment");
+					client.println("Content-Length:");
+					client.println();
+					
+					fileDownload = 1;   //File download has started
 
-				char *filename;
-				char name;
-				strcpy( MyBuffer, path );
-				filename = &MyBuffer[1];
-
-				fileDownload = 1;   //File download has started
-
-				readFile();
-
-			}
+					readFile();
+								
+			}   
 			else 
 			{
 				// everything else is a 404
@@ -920,7 +932,7 @@ void listen()   // Listen for client connection
 				client.println("<h2>404</h2>");
 				client.println("<h2>File Not Found!</h2>");
 			}
-			//exit;
+			
      }   
 	else 
 	{
@@ -1003,7 +1015,7 @@ void parseFirstLine(char* line, char* action, char* path)
 	strncpy(path, linepath, MAX_PATH); 
 }
 
-//////////////
+///////////////
 void readFile()
 {
 
@@ -1012,7 +1024,6 @@ void readFile()
 	// Open file for Reading.
 	SdFile webFile;
 	webFile.open(&root, &MyBuffer[1], O_READ);   
-
 	if (!webFile.isOpen()) error("readFile");
 
 	do   // @ adafruit_support_rick's do-while loop
@@ -1043,11 +1054,12 @@ void readFile()
 	delay(500);
 
 	MyBuffer[0] = '\0';
-
-	Serial.println("File read complete");
-	Serial.end();
+	
+		
+	
   
 }
+
 ////////////////////////////////////////////
 void minuteCall(RTCTimerInformation* Sender) 
 {
@@ -1130,8 +1142,7 @@ String getDateTime()
 ////////////////
 float getDHT22()
 {
-	// Wait a few seconds between measurements.
-	delay(2000);
+	
 
 	// Reading temperature or humidity takes about 250 milliseconds!
 	// Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -1140,11 +1151,14 @@ float getDHT22()
 	t = dht.readTemperature();
 	// Read temperature as Fahrenheit
 	f = dht.readTemperature(true);
+	
+	// Wait a few seconds between measurements.
+	delay(500);
 
 	// Check if any reads failed and exit early (to try again).
 	if (isnan(h) || isnan(t) || isnan(f)) 
 	{
-		Serial.println("Failed to read from DHT sensor!");
+	Serial.println("Failed to read from DHT sensor!");
 	}
 
 	// Compute heat index 
