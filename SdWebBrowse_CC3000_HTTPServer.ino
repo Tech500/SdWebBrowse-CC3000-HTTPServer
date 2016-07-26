@@ -1,8 +1,8 @@
 /***************************************************
 
-  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■                           Updated 07/10/2016 @ 00:07 EST
-  ■ Using Arduino Mega 2560 --Updated--     ■                                with fileRead function
-  ■ Last modified 07/10/2016 @ 00:07 EST    ■
+  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■                           Updated 07/25/2016 @ 15:54 EST
+  ■ Using Arduino Mega 2560 --Updated--     ■                                added ability to cancel download.
+  ■ Last modified 07/25/2016 @ 15:54 EST    ■
   ■                                         ■
   ■ Uses Adafruit CC3000 Shield --          ■
   ■ Modified Sketch by "Tech500" with       ■ 
@@ -328,14 +328,11 @@ void setup(void)
 		//Sends LOW to RESET of the 74HC73, J-K Flip-flop 
 		digitalWrite(RESET, LOW);
 		delay(500);  
-		digitalWrite(RESET, HIGH);
+		digitalWrite(RESET, HIGH); 
 
 	}
 
 	Serial.println(F("Listening for connections..."));
-
-	Serial.end();
- 
 
 	//Uncomment to set Real Time Clock --only needs to be run once
 
@@ -670,14 +667,14 @@ void listen()   // Listen for client connection
 	if (!cc3000.checkConnected())      // make sure still connected to wireless network
 	{
 
-	reConnect = "";
-	reConnect = "Listen";
-	 
-	if (!init_network())    // reconnect to WLAN
-	{
-	 delay(15 * 1000); // if no connection, try again later
-	 return;
-	} 
+		reConnect = "";
+		reConnect = "Listen";
+		 
+		if (!init_network())    // reconnect to WLAN
+		{
+		 delay(15 * 1000); // if no connection, try again later
+		 return;
+		} 
 	}
 
 	Adafruit_CC3000_ClientRef client = httpServer.available();
@@ -729,21 +726,8 @@ void listen()   // Listen for client connection
 			if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.                                                        
 			{ 
 
-				//  check wlan connective --if needed re-establish wlan connection
-				if (!cc3000.checkConnected())      
-				{
-
-					reConnect = "";
-					reConnect = "Weather";
-
-					if (!init_network())    // reconnect to WLAN
-					{
-					delay(15 * 1000); // if no connection, try again later
-					return;
-					}
-						
-				}
-
+				fileDownload = 1;
+				
 				// First send the success response code.
 				client.fastrprintln(F("HTTP/1.1 200 OK"));
 				client.fastrprintln(F("Content-Type: text"));
@@ -820,21 +804,8 @@ void listen()   // Listen for client connection
 			else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.  
 			{ 
 
-				//  check wlan connective --if needed re-establish wlan connection
-				if (!cc3000.checkConnected())      
-				{
-
-					reConnect = "";
-					reConnect = "SdBrowse";
-
-					if (!init_network())    // reconnect to WLAN
-					{
-						delay(15 * 1000); // if no connection, try again later
-						return;
-					}
-						
-				}
-
+				fileDownload = 1;
+				
 				// send a standard http response header
 				client.println("HTTP/1.1 200 OK"); 
 				client.println("Content-Type: text/html");
@@ -959,16 +930,33 @@ void listen()   // Listen for client connection
 	logFile.print("Path:  ");
 	logFile.println(path);
 	logFile.close();
+	
+	//  check wireless lan connective --if needed re-establish connection
+	if (!cc3000.checkConnected())      // make sure still connected to wireless network
+	{
+
+		reConnect = "";
+		reConnect = "Close";
+		 
+		if (!init_network())    // reconnect to WLAN
+		{
+		 delay(15 * 1000); // if no connection, try again later
+		 return;
+		} 
+	}
 
 	// Close the connection when done.
-	client.close();
 	Serial.println("Client closed");
 	Serial.println("");
+	Serial.end();
+	client.close();
+	
 
 	delay(1000);
           
 	}  
-  
+	
+	
       
 }
 //////////////////////////////////////////////////////////////////////
@@ -1019,12 +1007,14 @@ void parseFirstLine(char* line, char* action, char* path)
 void readFile()
 {
 
-	Adafruit_CC3000_ClientRef client = httpServer.available();
+	EthernetClient client = server.available(); 
 
 	// Open file for Reading.
 	SdFile webFile;
 	webFile.open(&root, &MyBuffer[1], O_READ);   
 	if (!webFile.isOpen()) error("readFile");
+	
+	bool dload_Cancel = false;
 
 	do   // @ adafruit_support_rick's do-while loop
 	{
@@ -1043,7 +1033,15 @@ void readFile()
 		}
 
 		if (count)
-		client.write( buffers, count);
+		{
+			if (client.connected())
+			client.write( buffers, count);
+			else 
+			{
+				dload_Cancel = true;
+				break;
+			}
+		}
 
 	} while (webFile.available());
 
@@ -1059,12 +1057,11 @@ void readFile()
 	
   
 }
-
 ////////////////////////////////////////////
 void minuteCall(RTCTimerInformation* Sender) 
 {
 
-	//Sends pulse every minute to keep external SwitchDoc Labs, "Dual Watchdog Timer" alive  
+	//Uses RTCTimedEvent library to send pulse every minute to keep external, SwitchDoc Labs, "Dual Watchdog Timer" alive  
 	pinMode(RESET_WATCHDOG1, OUTPUT);
 	delay(200);
 	pinMode(RESET_WATCHDOG1, INPUT); 
@@ -1368,6 +1365,8 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 	Serial.println("");
 	Serial.println(F("Listening for connections..."));
 	Serial.println("");
+	
+	Serial.end();
 
 }
 
