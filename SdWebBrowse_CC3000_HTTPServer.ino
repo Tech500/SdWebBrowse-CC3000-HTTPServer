@@ -1,8 +1,8 @@
 /***************************************************
 
-  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■                           Updated 07/25/2016 @ 15:54 EST
+  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■                           Updated 08/01/2016 @ 19:50 EST
   ■ Using Arduino Mega 2560 --Updated--     ■                                added ability to cancel download.
-  ■ Last modified 07/25/2016 @ 15:54 EST    ■
+  ■ Last modified 08/01/2016 @ 19:50 EST    ■
   ■                                         ■
   ■ Uses Adafruit CC3000 Shield --          ■
   ■ Modified Sketch by "Tech500" with       ■ 
@@ -94,9 +94,9 @@
 //  Updated 7/3/2016
 //
 //  When using SwitchDoc Labs, "Dual Watchdog Time" >> After uploading Sketch; open Serial Monitor,  
-//  this will result in a "Starting Server" in the Serial Monitor output.  Pressing the red reset button will 
-//  produce a Serial Monitor ouput of "Starting Server."  Any reset caused by SwitchDoc Labs, "Dual Watchdog Timer" 
-//  will print "Watchdog" in the Serial Monitor output.  All resets are logged to "Server.txt" on the SD Card.
+//  this will result in a "Manual RESET" in the Serial Monitor output.  Pressing the red reset button will 
+//  produce a Serial Monitor ouput of "Manual RESET."  Any reset caused by SwitchDoc Labs, "Dual Watchdog Timer" 
+//  will print "Watchdog RESET" in the Serial Monitor output.  All resets are logged to "Server.txt" on the SD Card.
 //
 //  "Server.txt," Identifies RESET and includes date and time occurred.
 //
@@ -108,7 +108,7 @@
 
 	//JP3 goes LOW to reset Arduino Mega
 
-	bool value;
+	int value;
 
 	//long int id = 1;  //Increments record number   
 	char *filename;
@@ -193,24 +193,29 @@
 	while(1);
 }
 
-////////////////
+//////////////// 
 void setup(void)
 {
 
 	Serial.begin(115200);
 
 	pinMode(sonalertPin, OUTPUT);  //Used for Piezo buzzer
-
+	
+	pinMode(Q, INPUT_PULLUP);  //Pin monitoring status of 74HC73, J-K Flip-flop
+		
 	Wire.begin();
 
 	sd.begin(chipSelect);
 
 	//if (!sd.begin(SPI_HALF_SPEED, chipSelect)) sd.initErrorHalt();
 
-	dht.begin();
+	dht.begin(); 
 
 	lcd.init();
-
+	
+	//delay(2000);
+	value = digitalRead(Q);
+		
 	PgmPrint("Free RAM: ");
 	Serial.println(FreeRam());  
 
@@ -219,7 +224,7 @@ void setup(void)
 	pinMode(10, OUTPUT);                       // set the SS pin as an output (necessary!)
 	digitalWrite(10, HIGH);                    // but turn off the W5100 chip!
 
-	if (!card.init(SPI_HALF_SPEED, 4)) error("card.init failed!");
+	if (!card.init(SPI_FULL_SPEED, 4)) error("card.init failed!");
 
 	// initialize a FAT volume
 	if (!volume.init(&card)) error("vol.init failed!");
@@ -229,6 +234,8 @@ void setup(void)
 	Serial.println();
 
 	if (!root.openRoot(&volume)) error("openRoot failed");
+	
+
 
 	// list file in root with date and size
 	PgmPrintln("Files found in root:");
@@ -240,8 +247,8 @@ void setup(void)
 	root.ls(LS_R);
 
 	Serial.println();
-	PgmPrintln("Done");;
-
+	PgmPrintln("Done");
+	
 	Serial.println(F("Hello, CC3000!\n")); 
 
 	//Serial.print("Free RAM: "); Serial.println(getFreeRam(), DEC);
@@ -279,14 +286,16 @@ void setup(void)
 	// Start listening for connections
 	httpServer.begin();
 
-	getDateTime();
-	delay(500);
+	
+	
+	Serial.println("Listening for connections...  " + dtStamp);
+	Serial.println("");
 
-	/////////////// J-K Flip-Flop //////////
-	delay(2500);
-	pinMode(Q, INPUT);  //Pin monitoring status of 74HC73, J-K Flip-flop
-	value = digitalRead(Q);
-	delay(250);	
+	/////////////// 74HC73  J-K Flip-Flop //////////
+		
+	delay(250);
+	
+	getDateTime();
 	
 	if((value) == 1) 
 	{
@@ -295,17 +304,17 @@ void setup(void)
 		SdFile serverFile;
 		serverFile.open("Server.txt", O_RDWR | O_CREAT | O_APPEND);
 		   
-		if (!serverFile.isOpen()) error("Watchdog Starting Server");
+		if (!serverFile.isOpen()) error("Watchdog Start Server");
 
-		serverFile.println("Watchdog Starting Server:  " + dtStamp);
+		serverFile.println("Watchdog RESET:  " + dtStamp);
 		serverFile.close();
-		Serial.print("Watchdog  ");
+		Serial.print("Watchdog RESET  ");
 		Serial.println(dtStamp + "  ");
 		//Serial.println(value);
 
 		//Sends LOW to RESET of the 74HC73, J-K Flip-flop 
 		digitalWrite(RESET, LOW);
-		delay(500);   
+		delay(500);
 		digitalWrite(RESET, HIGH);
 
 
@@ -317,23 +326,25 @@ void setup(void)
 		SdFile serverFile;
 		serverFile.open("Server.txt", O_RDWR | O_CREAT | O_APPEND);
 		 
-		if (!serverFile.isOpen()) error("Starting Server");
+		if (!serverFile.isOpen()) error("Manual Start Server");
 
-		serverFile.println("Starting Server:  " + dtStamp);
+		serverFile.println("Manual RESET:  " + dtStamp);
 		serverFile.close();  
-		Serial.print("Starting Server  ");
+		Serial.print("Manual RESET  ");
 		Serial.println(dtStamp + "  ");
 		//Serial.println(value);
 
 		//Sends LOW to RESET of the 74HC73, J-K Flip-flop 
 		digitalWrite(RESET, LOW);
-		delay(500);  
-		digitalWrite(RESET, HIGH); 
+		delay(500);
+		digitalWrite(RESET, HIGH);
 
 	}
 
-	Serial.println(F("Listening for connections..."));
+	Serial.end();
 
+	
+	
 	//Uncomment to set Real Time Clock --only needs to be run once
 
 	/*
@@ -359,7 +370,6 @@ void setup(void)
 	TIMER_ANY, //month
 	minuteCall);
 
-
 	// uncomment for different initialization settings
 	//dps.init();     // QFE (Field Elevation above ground level) is set to 0 meters.
 	// same as init(MODE_STANDARD, 0, true);
@@ -382,6 +392,8 @@ void setup(void)
 	getBMP085();
 
 	//lcdDisplay();      //   LCD 1602 Display function --used for inital display
+	
+	Serial.end();
 
 }
 
@@ -792,12 +804,14 @@ void listen()   // Listen for client connection
 				client.fastrprint(F(" Feet<br />"));
 				client.fastrprintln(F("<br /><br />"));
 				client.fastrprintln(F("<h2>Collected Observations</h2>"));
-				client.println("<a href=http://10.0.0.49:8001/log.txt download>Download: Current Week Observations</a><br />");
+				client.println("<a href=http://69.245.183.113:8001/log.txt download>Download: Current Week Observations</a><br />");
 				client.fastrprintln(F("<br />\r\n"));
-				client.println("<a href=http://10.0.0.49:8001/SdBrowse >Download: Previous Week Observations</a><br />");
+				client.println("<a href=http://69.245.183.113:8001/SdBrowse >Download: Previous Week Observations</a><br />");
 				client.fastrprintln(F("<body />\r\n"));
 				client.fastrprintln(F("<br />\r\n"));
 				client.fastrprintln(F("</html>\r\n"));
+				
+				
 
 			} 
 			// Check the action to see if it was a GET request.
@@ -820,10 +834,12 @@ void listen()   // Listen for client connection
 				client.println("<body />\r\n");
 				client.println("<br />\r\n");
 				client.println("</html>\r\n");
+				
+				fileDownload = 0;
 
 				delay(500);
-
-			}   
+				
+			}				
 			else if((strncmp(path, "/log.txt", 7) == 0) || (strncmp(path, "/LOG", 4) == 0) ||  (strcmp(path, "/ACCESS.TXT") == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0)) // Respond with the path that was accessed. 
 			{ 
 			
@@ -925,34 +941,21 @@ void listen()   // Listen for client connection
 	logFile.print("Accessed:  ");
 	getDateTime(); //get accessed date and time
 	logFile.print(dtStamp + " -- ");
-	logFile.print("unsupported");
+	logFile.print("ip unsupported");
 	logFile.print(" -- ");
 	logFile.print("Path:  ");
 	logFile.println(path);
 	logFile.close();
 	
-	//  check wireless lan connective --if needed re-establish connection
-	if (!cc3000.checkConnected())      // make sure still connected to wireless network
-	{
-
-		reConnect = "";
-		reConnect = "Close";
-		 
-		if (!init_network())    // reconnect to WLAN
-		{
-		 delay(15 * 1000); // if no connection, try again later
-		 return;
-		} 
-	}
-
 	// Close the connection when done.
+	Serial.begin(115200);
 	Serial.println("Client closed");
 	Serial.println("");
 	Serial.end();
 	client.close();
 	
 
-	delay(1000);
+	delay(10); 
           
 	}  
 	
@@ -1007,7 +1010,7 @@ void parseFirstLine(char* line, char* action, char* path)
 void readFile()
 {
 
-	EthernetClient client = server.available(); 
+	Adafruit_CC3000_ClientRef client = httpServer.available(); 
 
 	// Open file for Reading.
 	SdFile webFile;
@@ -1023,7 +1026,7 @@ void readFile()
 		bool done = false;
 
 		while ((!done) && (count < BUFSIZE) && (webFile.available()))
-		{
+		{ 
 			char c = webFile.read();
 			if (0 > c)
 			done = true;
@@ -1038,7 +1041,7 @@ void readFile()
 			client.write( buffers, count);
 			else 
 			{
-				dload_Cancel = true;
+				dload_Cancel = true; 
 				break;
 			}
 		}
@@ -1053,7 +1056,7 @@ void readFile()
 
 	MyBuffer[0] = '\0';
 	
-		
+	client.close();	
 	
   
 }
@@ -1061,11 +1064,11 @@ void readFile()
 void minuteCall(RTCTimerInformation* Sender) 
 {
 
-	//Uses RTCTimedEvent library to send pulse every minute to keep external, SwitchDoc Labs, "Dual Watchdog Timer" alive  
+	//Sends pulse to keep external "SwitchDoc Labs, Dual Watchdog Timer" alive  
 	pinMode(RESET_WATCHDOG1, OUTPUT);
-	delay(200);
+	delay(500);
 	pinMode(RESET_WATCHDOG1, INPUT); 
-  
+  	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
