@@ -725,7 +725,7 @@ void listen()   // Listen for client connection
 		}
     
 		// Handle the request if it was parsed. 
-		if (parsed) 
+		if (parsed)   
 		{
                     
 			Serial.println(F("Processing request"));
@@ -738,8 +738,6 @@ void listen()   // Listen for client connection
 			if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.                                                        
 			{ 
 
-				fileDownload = 1;
-				
 				// First send the success response code.
 				client.fastrprintln(F("HTTP/1.1 200 OK"));
 				client.fastrprintln(F("Content-Type: text"));
@@ -1044,7 +1042,7 @@ void readFile()
 				dload_Cancel = true; 
 				break;
 			}
-		}
+		} 
 
 	} while (webFile.available());
 
@@ -1066,7 +1064,7 @@ void minuteCall(RTCTimerInformation* Sender)
 
 	//Sends pulse to keep external "SwitchDoc Labs, Dual Watchdog Timer" alive  
 	pinMode(RESET_WATCHDOG1, OUTPUT);
-	delay(500);
+	delay(2000);
 	pinMode(RESET_WATCHDOG1, INPUT); 
   	
 }
