@@ -30,3 +30,7 @@ on any known value to be associated with serve weather.
 11. Added "SwitchDoc Labs, Dual Watchdog Timer" to project; resets Arduino Mega in case sketch execution fails..
 
 12. Added a 74HC73, JK Flip-flop to log "Dual Watchdog Timer" reset to file on SD Card.
+
+13,  Added fileRead function; consolidating code for doing file reads,
+
+14.  Added ability to cancel download; without hanging Sketch.
