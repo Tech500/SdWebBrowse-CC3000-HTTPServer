@@ -1,13 +1,13 @@
 /***************************************************
 
-  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■                           Updated 08/01/2016 @ 19:50 EST
-  ■ Using Arduino Mega 2560 --Updated--     ■                                added ability to cancel download.
-  ■ Last modified 08/01/2016 @ 19:50 EST    ■
+  ■ SDWebBrowse_CC3000_HTTPServer.ino       ■                           Updated 08/06/2016 @ 20:4 6EST
+  ■ Using Arduino Mega 2560 --Updated--     ■                                
+  ■ Last modified 08/06/2016 @ 20:46 EST    ■
   ■                                         ■
   ■ Uses Adafruit CC3000 Shield --          ■
   ■ Modified Sketch by "Tech500" with       ■ 
-  ■ help from "Adafruit Forum"              ■
- 
+  ■ help from "Adafruit Forum"  and the     ■
+  ■ "Arduino.cc forums."                    ■
     
 ****************************************************/
 // ********************************************************************************
@@ -91,14 +91,16 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-//  Updated 7/3/2016
-//
 //  When using SwitchDoc Labs, "Dual Watchdog Time" >> After uploading Sketch; open Serial Monitor,  
-//  this will result in a "Manual RESET" in the Serial Monitor output.  Pressing the red reset button will 
-//  produce a Serial Monitor ouput of "Manual RESET."  Any reset caused by SwitchDoc Labs, "Dual Watchdog Timer" 
-//  will print "Watchdog RESET" in the Serial Monitor output.  All resets are logged to "Server.txt" on the SD Card.
+//  this will result in a "Manual RESET" in the Serial Monitor output.  Pressing the red reset button will also
+//  produce a Serial Monitor ouput of a "Manual RESET."  Any reset caused by SwitchDoc Labs, "Dual Watchdog Timer" 
+//  will produce a "Watchdog RESET" in the Serial Monitor output.  All resets are logged to "Server.txt" on the SD Card.
 //
 //  "Server.txt," Identifies RESET and includes date and time occurred.
+//
+//  IMPORTANT:  Connection from 74HC73, pin 1 to Arduino Mega 2560, RESET pin needs to be switched off or disconnected to 
+//  compile or load Sketch; otherwise, compiler will ABORT!  Once compiled and and Serial Monitor has opened switch on or reconnect
+//  74HC73, pin to Arduino Mega 2560, pin RESET.
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -727,7 +729,22 @@ void listen()   // Listen for client connection
 		// Handle the request if it was parsed. 
 		if (parsed)   
 		{
-                    
+            
+			// Open a "access.txt" for appended writing.   Client access ip address logged.
+			SdFile logFile;
+			logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
+
+			if (!logFile.isOpen()) error("log");
+
+			logFile.print("Accessed:  ");
+			getDateTime(); //get accessed date and time
+			logFile.print(dtStamp + " -- ");
+			logFile.print("ip unsupported");
+			logFile.print(" -- ");
+			logFile.print("Path:  ");
+			logFile.println(path);
+			logFile.close();
+			
 			Serial.println(F("Processing request"));
 			Serial.print(F("Action: ")); Serial.println(action);
 			Serial.print(F("Path: ")); Serial.println(path); 
@@ -930,23 +947,9 @@ void listen()   // Listen for client connection
 	// the connection is closed (the CC3000 sends data asyncronously).
 
 
-	// Open a "access.txt" for appended writing.   Client access ip address logged.
-	SdFile logFile;
-	logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
-
-	if (!logFile.isOpen()) error("log");
-
-	logFile.print("Accessed:  ");
-	getDateTime(); //get accessed date and time
-	logFile.print(dtStamp + " -- ");
-	logFile.print("ip unsupported");
-	logFile.print(" -- ");
-	logFile.print("Path:  ");
-	logFile.println(path);
-	logFile.close();
+	
 	
 	// Close the connection when done.
-	Serial.begin(115200);
 	Serial.println("Client closed");
 	Serial.println("");
 	Serial.end();
