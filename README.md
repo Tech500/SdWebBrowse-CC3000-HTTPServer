@@ -34,3 +34,4 @@ on any known value to be associated with serve weather.
 13,  Added fileRead function; consolidating code for doing file reads,
 
 14.  Added ability to cancel download; without hanging Sketch.
+
