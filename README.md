@@ -1,11 +1,6 @@
-DIY Datalogger combined with HTTPWeb server:  SdWebBrowse_CC3000_HTTPServer.ino is a datalogger and web server. Once current sketch is updated; will be same, as current revision 30.1 of SdBrowse_Ethernet_WEBServer Sketch.
+DIY Datalogger combined with HTTPWeb server:  SdWebBrowse_CC3000_HTTPServer.ino is a datalogger and web server. 
 
 Requires Arduino Mega 2560, Ethernet Shield and Real time clock, and Sensors for Humidity/Temperature and Barometric pressure.
-
-Cleaned up formatting of entire Sketch.
-
-All Files except "System~1/", "Favicon.ico", and "Access.txt" can now be "Opened/Saved As;" instead of just listed on screen.
-
 
 Features:
 
