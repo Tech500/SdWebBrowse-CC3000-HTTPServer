@@ -1,6 +1,6 @@
 DIY Datalogger combined with HTTPWeb server: SdWebBrowse_CC3000_HTTPServer.ino is a datalogger and web server.
 
-Requires Arduino Mega 2560, Ethernet Shield and Real time clock, and Sensors for Humidity/Temperature and Barometric pressure.
+Requires Arduino Mega 2560, Adafruit CC3000 Shield and Real time clock, and Sensors for Humidity/Temperature and Barometric pressure.
 
 Features:
 
