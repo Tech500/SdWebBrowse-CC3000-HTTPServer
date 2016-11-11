@@ -1,26 +1,43 @@
-/***************************************************
-
-  ■ SdWebBrowse_CC3000_HTTPServer.ino       ■                           client IP address is returned now.  Requires modified Adafruit CC3000 Library
-  ■ Using Arduino Mega 2560 --Updated--     ■                                
-  ■ 10/22/2016 00:36 AM EST                 ■                           Improved flow control --added fileDownload = 1 to Weather section of listen function
-  ■ Uses Adafruit CC3000 Shield --          ■                           to allow competion of Weather Observation HTML and allow connection to close.
+/********************************************
+  ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
+  ■ Updated 11/10/2016 22:44 PM EST         ■    
+  ■ Using Arduino Mega 2560,                ■                                
+  ■ Adafruit CC3000 Shield, DS1307,         ■ 
+  ■ DHT22, and BMP085.                      ■ 
+  ■                                         ■
+  ■ Based on Adafruit CC3000 library        ■ 
+  ■ Example:  HTTPServer.ino                ■ 
+  ■                                         ■   
   ■ Modified Sketch by "Tech500" with       ■ 
-  ■ help from "Adafruit Forum"              ■                           74HC73, pinMode(RESET INPUT) moved to function minuteCall  
+  ■ help from "Adafruit Forum"              ■                           
  
-    
+
+
+Client IP address is returned now.  *** Requires modified Adafruit CC3000 Library ***
+      
+Improved flow control --added fileDownload = 1 to Weather section of listen function
+to allow competion of Weather Observation HTML and allow connection to close.
+
+74HC73, pinMode(RESET, INPUT) moved to function minuteCall  
+
+Added another init network() in logtoSD()
+ 
 ****************************************************/
+
+
+// ********************************************************************************
 // ********************************************************************************
 //
-//   See invidual downloads for each libraries license.
+//   See invidual library downloads for each library license.
 //   
-//   Following code was developed by merging library examples, adding
-//   logic for sketch flow.
+//   Following code was developed using the Adafruit CC300 library, "HTTPServer" example. 
+//   and by merging library examples, adding logic for Sketch flow.
 //   
 // *********************************************************************************   
- 
+// ********************************************************************************* 
  
 #include <Adafruit_CC3000.h>   //https://github.com/adafruit/Adafruit_CC3000_Library
-#include <Adafruit_CC3000_Server.h>   //https://github.com/adafruit/Adafruit_CC3000_Library
+#include <Adafruit_CC3000_Server.h>   //https://github.com/adafruit/Adafruit_CC3000_Library (Modified file to aquire clientIP)
 #include "utility/debug.h"   //https://github.com/adafruit/Adafruit_CC3000_Library
 #include <SdFat.h>   //https://github.com/greiman/SdFat
 #include <SdFile.h>   //https://github.com/greiman/SdFat
@@ -189,7 +206,9 @@ void setup(void)
 
   pinMode(sonalertPin, OUTPUT);  //Used for Piezo buzzer
   
-  pinMode(Q, INPUT_PULLUP);  //Pin monitoring status of 74HC73, J-K Flip-flop
+  pinMode(Q, INPUT_PULLUP);  //Monitoring status of 74HC73, Q Output
+  
+  pinMode(RESET_WATCHDOG1, INPUT); 
   
   Wire.begin();
 
@@ -199,7 +218,7 @@ void setup(void)
 
   lcd.init();
   
-  value = digitalRead(Q);  //74HC73, Q  value = 1 if Q is HIGH
+  value = digitalRead(Q);  //Status of 74HC73, Q Output, value = 1 --if Q is HIGH
     
   PgmPrint("Free RAM: ");
   Serial.println(FreeRam());  
@@ -266,16 +285,15 @@ void setup(void)
   {
     delay(1000);
   }
+  
+  Serial.println("");
 
   // Start listening for connections
   httpServer.begin();
 
   delay(4000);  //Wait for all to start-up  --would cause program halts without delay.
-  
-  Serial.println("Listening for connections...  " + dtStamp);
-  Serial.println("");
 
-  /////////////// 74HC73  J-K Flip-Flop //////////
+  /////////////// JK Flip-Flop 74HC73, Q Status Monitoring //////////
     
   delay(250); 
   
@@ -296,7 +314,7 @@ void setup(void)
     Serial.println(dtStamp + "  ");
     //Serial.println(value);
 
-    //Sends LOW to RESET of the 74HC73, J-K Flip-flop 
+    //Sends LOW to RESET of the 74HC73, JK Flip-flop 
     delay(2000);
     pinMode(RESET, OUTPUT);
     
@@ -318,13 +336,16 @@ void setup(void)
     Serial.println(dtStamp + "  ");
     //Serial.println(value);
 
-    //Sends LOW to RESET of the 74HC73, J-K Flip-flop 
+    //Sends LOW to RESET of the 74HC73, JK Flip-flop 
     delay(2000);
     pinMode(RESET, OUTPUT);
     
 
   }
   
+  Serial.println("Listening for connections...  ");
+  Serial.println("");
+  Serial.flush();
   Serial.end();
   
   //Uncomment to set Real Time Clock --only needs to be run once
@@ -461,7 +482,7 @@ char ListFiles(Adafruit_CC3000_ClientRef client, uint8_t flags, SdFile dir)
 void loop()
 {
 
-  watchDog();
+  watchDog(); 
   
   //  check wireless lan connective --if needed re-establish connection
   if (!cc3000.checkConnected())      // make sure still connected to wireless network
@@ -532,7 +553,6 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
 {
   
   Serial.begin(115200);
-
 
   if((fileDownload) == 1)   //File download has started
   {
@@ -627,6 +647,20 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
   Serial.flush();
   Serial.end();
   }
+  
+  //  check wireless lan connective --if needed re-establish connection
+  if (!cc3000.checkConnected())      // make sure still connected to wireless network
+  {
+
+    reConnect = "";
+    reConnect = "Log";
+
+    if (!init_network())    // reconnect to WLAN
+    {
+      delay(15 * 1000); // if no connection, try again later
+      return;
+    }
+  }
 }
 
 /////////////////
@@ -657,352 +691,362 @@ void listen()   // Listen for client connection
 
   
 
-  fileDownload = 0;   //No file being downloaded
+	fileDownload = 0;   //No file being downloaded
 
-  Adafruit_CC3000_ClientRef client = httpServer.available();
-
-  if (client) 
-  {
-  
-    //  check wireless lan connective --if needed re-establish connection
-    if (!cc3000.checkConnected())      // make sure still connected to wireless network
-    {
-
-      reConnect = "";
-      reConnect = "Listen";
-       
-      if (!init_network())    // reconnect to WLAN
-      {
-       delay(15 * 1000); // if no connection, try again later
-       return;
-      } 
-    }
+	Adafruit_CC3000_ClientRef client = httpServer.available();
 	
-	// Process this request until it completes or times out.
-    // Note that this is explicitly limited to handling one request at a time!
+	//  check wireless lan connective --if needed re-establish connection
+	if (!cc3000.checkConnected())      // make sure still connected to wireless network
+	{
 
-    // Clear the incoming data buffer and point to the beginning of it.  
-    bufindex = 0;
-    memset(&buffer, 0, sizeof(buffer));
+		reConnect = "";
+		reConnect = "Listen";
 
-    // Clear action and path strings.
-    memset(&action, 0, sizeof(action));
-    memset(&path,   0, sizeof(path));
-
-    // Set a timeout for reading all the incoming data.
-    unsigned long endtime = millis() + TIMEOUT_MS;
-
-    // Read all the incoming data until it can be parsed or the timeout expires.
-    bool parsed = false;
-
-    while (!parsed && (millis() < endtime) && (bufindex < BUFFER_SIZE))
-    {
-
-      if (client.available()) 
-      {
-        buffer[bufindex++] = client.read(); 
-      }
-
-      parsed = parseRequest(buffer, bufindex, action, path); 
-    }
-    
-    // Handle the request if it was parsed. 
-    if (parsed)   
-    {
-            
-      Serial.begin(115200);  
-      Serial.println();
-      getDateTime();
-      Serial.println("Client connected:  " + dtStamp);
-      Serial.println(F("Processing request"));
-      Serial.print(F("Action: ")); Serial.println(action);
-      Serial.print(F("Path: ")); Serial.println(path); 
-      
-      
-	  	getDateTime(); //get accessed date and time
-		
-		char ip1String[] = "10.0.0.146";   //Server ip address
-		char ip2String[16] = "";   //client.ip_addr = clientIP[16]
-		snprintf(ip2String, 16, "%d.%d.%d.%d", client.ip_addr[3], client.ip_addr[2], client.ip_addr[1], client.ip_addr[0]);
-		
-		Serial.print("Client IP:  ");  
-		Serial.println(ip2String);
-		
-		// Open a "access.txt" for appended writing.   Client access ip address logged.
-		SdFile logFile;
-		logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
-	  
-		if (!logFile.isOpen()) error("log");
-	  
-			
-			if (0 == (strncmp(ip1String, ip2String, 16)))
-			{
-				//Serial.println("addresses match");
-				exit;
-			}
-			else
-			{
-				//Serial.println("addresses do not match");
-				
-				logFile.print("Accessed:  ");
-				logFile.print(dtStamp + " -- ");
-				logFile.print("Client IP:  ");
-				logFile.print(client.ip_addr[3]);
-				logFile.print('.');
-				logFile.print(client.ip_addr[2]);
-				logFile.print('.');
-				logFile.print(client.ip_addr[1]);
-				logFile.print('.');
-				logFile.print(client.ip_addr[0]); 
-				logFile.print(" -- ");
-				logFile.print("Path:  ");
-				logFile.print(path);
-				logFile.println("");
-				logFile.close();
-			}
-					
-/*      if (strncmp(path, "/favicon.ico", 12) == 0)
+		if (!init_network())    // reconnect to WLAN
 		{
-              
-			fileDownload = 1;
-			
-			char *filename;
-			char name;
-			strcpy(MyBuffer, path);
-			filename = &MyBuffer[1];
-			
-			client.println("HTTP/1.1 200 OK");
-			client.println("Content-Type: image/x-icon");
-			client.println("Content-Disposition: icon");
-			client.println("Content-Length:");
-			client.println();
-			
-			fileDownload = 1;   //File download has started
+			delay(15 * 1000); // if no connection, try again later
+			return;
+		} 
+	}
 
-			readFile();
-			
-			fileDownload = 0;   //File download has ended
-        
-        
-        
-		}
+	if (client) 
+	{
+	  
+			// Process this request until it completes or times out.
+			// Note that this is explicitly limited to handling one request at a time!
+
+			// Clear the incoming data buffer and point to the beginning of it.  
+			bufindex = 0;
+			memset(&buffer, 0, sizeof(buffer));
+
+			// Clear action and path strings.
+			memset(&action, 0, sizeof(action));
+			memset(&path,   0, sizeof(path));
+
+			// Set a timeout for reading all the incoming data.
+			unsigned long endtime = millis() + TIMEOUT_MS;
+
+			// Read all the incoming data until it can be parsed or the timeout expires.
+			bool parsed = false;
+
+			while (!parsed && (millis() < endtime) && (bufindex < BUFFER_SIZE))
+			{
+
+				if (client.available()) 
+				{
+					buffer[bufindex++] = client.read(); 
+				}
+
+				parsed = parseRequest(buffer, bufindex, action, path); 
+			}
+		
+		// Handle the request if it was parsed. 
+		if (parsed)   
+		{
+					
+				Serial.begin(115200);  
+				Serial.println();
+				getDateTime();
+				Serial.println("Client connected:  " + dtStamp);
+				Serial.println(F("Processing request"));
+				Serial.print(F("Action: ")); Serial.println(action);
+				Serial.print(F("Path: ")); Serial.println(path); 
+				  
+				getDateTime(); //get accessed date and time
+
+				char ip1String[] = "10.0.0.146";   //Server ip address
+				char ip2String[16] = "";   //client.ip_addr = clientIP[16]
+				snprintf(ip2String, 16, "%d.%d.%d.%d", client.ip_addr[3], client.ip_addr[2], client.ip_addr[1], client.ip_addr[0]);
+
+				Serial.print("Client IP:  ");  
+				Serial.println(ip2String);
+
+				// Open a "access.txt" for appended writing.   Client access ip address logged.
+				SdFile logFile;
+				logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
+
+				if (!logFile.isOpen()) error("log");
+
+			  	if (0 == (strncmp(ip1String, ip2String, 16)))
+				{
+					//Serial.println("addresses match");
+					exit;
+				}
+				else
+				{
+					//Serial.println("addresses do not match --log client ip address");
+
+					logFile.print("Accessed:  ");
+					logFile.print(dtStamp + " -- ");
+					logFile.print("Client IP:  ");
+					logFile.print(ip2String);
+					logFile.print(" -- ");
+					logFile.print("Path:  ");
+					logFile.print(path);
+					logFile.println("");
+					logFile.close();
+				}
+				  
+/*          if (strncmp(path, "/favicon.ico", 12) == 0)
+			{
+					  
+				fileDownload = 1;
+
+				char *filename;
+				char name;
+				strcpy(MyBuffer, path);
+				filename = &MyBuffer[1];
+
+				client.println("HTTP/1.1 200 OK");
+				client.println("Content-Type: image/x-icon");
+				client.println("Content-Disposition: icon");
+				client.println("Content-Length:");
+				client.println();
+
+				fileDownload = 1;   //File download has started
+
+				readFile();
+
+				fileDownload = 0;   //File download has ended
+				
+				
+				
+			}
 */
 
-      // Check the action to see if it was a GET request.
-      if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.                                                        
-      { 
-      
-        fileDownload = 1;
+			// Check the action to see if it was a GET request.
+			if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.                                                        
+			{ 
 
-        // First send the success response code.
-        client.fastrprintln(F("HTTP/1.1 200 OK"));
-        client.fastrprintln(F("Content-Type: html"));
-        client.fastrprintln(F("Connnection: close"));
-        client.fastrprintln(F("Server: Adafruit CC3000"));
-        // Send an empty line to signal start of body.
-        client.fastrprintln(F(""));
-        // Now send the response data.
-        // output dynamic webpage
-        client.fastrprintln(F("<!DOCTYPE HTML>"));
-        client.fastrprintln(F("<html>\r\n"));
-        client.fastrprintln(F("<body>\r\n"));
-        client.fastrprintln(F("<head><title>Weather Observations</title></head>"));
-        // add a meta refresh tag, so the browser pulls again every 15 seconds:
-        //client.fastrprintln(F("<meta http-equiv=\"refresh\" content=\"15\">")); 
-        client.fastrprintln(F("<h2>Treyburn Lakes</h2><br />"));
-        client.fastrprintln(F("Indianapolis, IN 46239<br />"));
-        
-        if(lastUpdate != NULL)
-        {
-          client.println("Last Update:  ");  
-          client.println(lastUpdate);
-          client.println(" EST <br />");
-        }
-        
-        client.fastrprintln(F("Humidity:  "));
-        client.print(h, 2);
-        client.fastrprint(F(" %<br />"));
-        client.fastrprintln(F("Dew point:  "));
-        client.print((dewPoint) + (9/5 +32),1);
-        client.fastrprint(F(" F. <br />"));
-        client.fastrprintln(F("Temperature:  "));
-        client.print(f);
-        client.fastrprint(F(" F.<br />"));
-        client.fastrprintln(F("Heat Index:  "));
-        client.print(hi);
-        client.fastrprint(F(" F. <br />"));
-        client.fastrprintln(F("Barometric Pressure:  "));
-        //client.print(F(Pressure *  0.000295333727));  //Convert Pascals to inches of Mecury 
-        client.print(currentPressure);  
-        client.fastrprint(F(" in. Hg.<br />"));
-          
-        if (pastPressure == currentPressure)
-        {
-          client.println(difference, 3);
-          client.fastrprint(F(" Difference in. Hg <br />"));
-        }   
-        else
-        {
-          client.println(difference, 3);
-          client.fastrprint(F(" Difference in. Hg <br />")); 
-        }
+				fileDownload = 1;
 
-        client.fastrprintln(F("Barometric Pressure:  "));
-        client.println(milliBars);
-        client.fastrprintln(F(" mb.<br />"));
-        client.fastrprintln(F("Atmosphere:  "));
-        client.print(Pressure * 0.00000986923267, 3);   //Convert Pascals to Atm (atmospheric pressure)
-        client.fastrprint(F(" atm <br />"));
-        client.fastrprintln(F("Altitude:  "));
-        client.print(Altitude * 0.0328084, 2);  //Convert cm to Feet
-        client.fastrprint(F(" Feet<br />"));
-        client.fastrprintln(F("<br /><br />"));
-        client.fastrprintln(F("<h2>Collected Observations</h2>"));
-        client.println("<a href=http://69.245.183.113:8001/log.txt download>Download: Current Week Observations</a><br />");
-        client.fastrprintln(F("<br />\r\n"));
-        client.println("<a href=http://69.245.183.113:8001/SdBrowse >Download: Previous Week Observations</a><br />");
-        client.fastrprintln(F("<body />\r\n"));
-        client.fastrprintln(F("<br />\r\n"));
-        client.fastrprintln(F("</html>\r\n"));
-        
-        fileDownload = 0;
-        
-      } 
-      // Check the action to see if it was a GET request.
-      else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.  
-      { 
+				// First send the success response code.
+				client.fastrprintln(F("HTTP/1.1 200 OK"));
+				client.fastrprintln(F("Content-Type: html"));
+				client.fastrprintln(F("Connnection: close"));
+				client.fastrprintln(F("Server: Adafruit CC3000"));
+				// Send an empty line to signal start of body.
+				client.fastrprintln(F(""));
+				// Now send the response data.
+				// output dynamic webpage
+				client.fastrprintln(F("<!DOCTYPE HTML>"));
+				client.fastrprintln(F("<html>\r\n"));
+				client.fastrprintln(F("<body>\r\n"));
+				client.fastrprintln(F("<head><title>Weather Observations</title></head>"));
+				// add a meta refresh tag, so the browser pulls again every 15 seconds:
+				//client.fastrprintln(F("<meta http-equiv=\"refresh\" content=\"15\">")); 
+				client.fastrprintln(F("<h2>Treyburn Lakes</h2><br />"));
+				client.fastrprintln(F("Indianapolis, IN 46239<br />"));
 
-        fileDownload = 1;
-        
-        // send a standard http response header
-        client.println("HTTP/1.1 200 OK"); 
-        client.println("Content-Type: text/html");
-        client.println();
-        client.println("<!DOCTYPE HTML>");
-        client.println("<html>\r\n");
-        client.println("<body>\r\n"); 
-        client.println("<head><title>SDBrowse</title><head />");
-        // print all the files, use a helper to keep it clean
-        client.println("<h2>Server Files:</h2>");
-        ListFiles(client, LS_SIZE, root);
-        client.println("<body />\r\n");
-        client.println("<br />\r\n");
-        client.println("</html>\r\n");
-        
-        fileDownload = 0;
-                
-      }       
-      else if((strncmp(path, "/log.txt", 7) == 0) || (strncmp(path, "/LOG", 4) == 0) ||  (strcmp(path, "/ACCESS.TXT") == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0)) // Respond with the path that was accessed. 
-      { 
-      
-        fileDownload = 1;   //File download has started; used to stop logFile from logging during download
+				if(lastUpdate != NULL)
+				{
+					client.println("Last Update:  ");  
+					client.println(lastUpdate);
+					client.println(" EST <br />");
+				}
 
-        char *filename;
-        char name;
-        strcpy( MyBuffer, path );
-        filename = &MyBuffer[1];
-        
-          if ((strncmp(path, "/SYSTEM~1", 9) == 0) || (strcmp(path, "/ACCESS.TXT") == 0))
-          {
-          
-            client.println("HTTP/1.1 404 Not Found");
-            client.println("Content-Type: text/html");
-            client.println();
-            client.println("<h2>404</h2>\r\n");
-            delay(250);
-            client.println("<h2>File Not Found!</h2>\r\n");
-            
-          }
-          else if(file.isDir()) 
-          {
-            
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: text/html");
-            client.println();
-            client.print("<h2>Files in /");
-            client.print(name);
-            client.println("/:</h2>");
-            ListFiles(client,LS_SIZE,file); 
-            file.close();
-          }
-          else 
-          {
+				client.fastrprintln(F("Humidity:  "));
+				client.print(h, 2);
+				client.fastrprint(F(" %<br />"));
+				client.fastrprintln(F("Dew point:  "));
+				client.print((dewPoint) + (9/5 +32),1);
+				client.fastrprint(F(" F. <br />"));
+				client.fastrprintln(F("Temperature:  ")); 
+				client.print(f);
+				client.fastrprint(F(" F.<br />"));
+				client.fastrprintln(F("Heat Index:  "));
+				client.print(hi);
+				client.fastrprint(F(" F. <br />"));
+				client.fastrprintln(F("Barometric Pressure:  "));
+				//client.print(F(Pressure *  0.000295333727));  //Convert Pascals to inches of Mecury 
+				client.print(currentPressure);  
+				client.fastrprint(F(" in. Hg.<br />"));
+				  
+				if (pastPressure == currentPressure)
+				{
+					client.println(difference, 3);
+					client.fastrprint(F(" Difference in. Hg <br />"));
+				}   
+				else
+				{
+					client.println(difference, 3);
+					client.fastrprint(F(" Difference in. Hg <br />")); 
+				}
 
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: text/plain");
-            client.println("Content-Disposition: attachment");
-            client.println("Content-Length:");
-			client.println("Connnection: close");
-            client.println();
-            
-            fileDownload = 1;   //File download has started
-            
-            Serial.begin(115200);
-            Serial.println(&MyBuffer[1]);
-            Serial.end();
+				client.fastrprintln(F("Barometric Pressure:  "));
+				client.println(milliBars);
+				client.fastrprintln(F(" mb.<br />"));
+				client.fastrprintln(F("Atmosphere:  "));
+				client.print(Pressure * 0.00000986923267, 3);   //Convert Pascals to Atm (atmospheric pressure)
+				client.fastrprint(F(" atm <br />"));
+				client.fastrprintln(F("Altitude:  "));
+				client.print(Altitude * 0.0328084, 2);  //Convert cm to Feet
+				client.fastrprint(F(" Feet<br />"));
+				client.fastrprintln(F("<br /><br />"));
+				client.fastrprintln(F("<h2>Collected Observations</h2>"));
+				client.println("<a href=http://69.245.183.113:8001/log.txt download>Download: Current Week Observations</a><br />");
+				client.fastrprintln(F("<br />\r\n"));
+				client.println("<a href=http://69.245.183.113:8001/SdBrowse >Download: Weekly Data Files</a><br />");
+				client.fastrprintln(F("<body />\r\n"));
+				client.fastrprintln(F("<br />\r\n"));
+				client.fastrprintln(F("</html>\r\n"));
 
-            readFile();
-            
-          }
-          
-      } 
-      // Check the action to see if it was a GET request.
-      else if (strncmp(path, "/lucid", 6) == 0) // Respond with the path that was accessed.    
-      {         
-        
-        //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in 
-        //404 File not Found!  
-        
-        char *filename = "/ACCESS.TXT";
-        strcpy(MyBuffer, filename);
-                                
-          // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: text/plain");
-          client.println("Content-Disposition: attachment");
-          client.println("Content-Length:");
-          client.println();
-          
-          fileDownload = 1;   //File download has started
+				fileDownload = 0;
 
-          readFile();
-                
-      }   
-      else 
-      {
-        
-        delay(1000);
-        
-        // everything else is a 404
-        client.println("HTTP/1.1 404 Not Found");
-        client.println("Content-Type: text/html");
-        client.println();
-        client.println("<h2>404</h2>\r\n");
-        delay(250);
-        client.println("<h2>File Not Found!</h2>\r\n");
-      }
-      
-     }   
-  else 
-  {
-    // Unsupported action, respond with an HTTP 405 method not allowed error.
-    client.fastrprintln(F("HTTP/1.1 405 Method Not Allowed"));
-    client.fastrprintln(F(""));
+			} 
+			// Check the action to see if it was a GET request.
+			else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.  
+			{ 
 
-  }
-  // Wait a short period to make sure the response had time to send before
-  // the connection is closed (the CC3000 sends data asyncronously).
+			fileDownload = 1;
 
-  // Close the connection when done.
-  client.close();
-  Serial.begin(115200);
-  Serial.println("Client closed");
-  Serial.println("");
+			// send a standard http response header
+			client.println("HTTP/1.1 200 OK"); 
+			client.println("Content-Type: text/html");
+			client.println();
+			client.println("<!DOCTYPE HTML>");
+			client.println("<html>\r\n");
+			client.println("<body>\r\n"); 
+			client.println("<head><title>SDBrowse</title><head />");
+			// print all the files, use a helper to keep it clean
+			client.println("<h2>Server Files:</h2>");
+			ListFiles(client, LS_SIZE, root);
+			client.println("<body />\r\n");
+			client.println("<br />\r\n");
+			client.println("</html>\r\n");
+
+			fileDownload = 0;
+						
+			}       
+			else if((strncmp(path, "/log.txt", 7) == 0) || (strncmp(path, "/LOG", 4) == 0) ||  (strcmp(path, "/ACCESS.TXT") == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0)) // Respond with the path that was accessed. 
+			{ 
+
+				fileDownload = 1;   //File download has started; used to stop logFile from logging during download
+
+				char *filename;
+				char name;
+				strcpy( MyBuffer, path );
+				filename = &MyBuffer[1];
+
+				if ((strncmp(path, "/SYSTEM~1", 9) == 0) || (strcmp(path, "/ACCESS.TXT") == 0))
+				{
+
+					client.println("HTTP/1.1 404 Not Found");
+					client.println("Content-Type: text/html");
+					client.println();
+					client.println("<h2>404</h2>\r\n");
+					delay(250);
+					client.println("<h2>File Not Found!</h2>\r\n");
+
+				}
+				else if(file.isDir()) 
+				{
+
+					client.println("HTTP/1.1 200 OK");
+					client.println("Content-Type: text/html");
+					client.println();
+					client.print("<h2>Files in /");
+					client.print(name);
+					client.println("/:</h2>");
+					ListFiles(client,LS_SIZE,file); 
+					file.close();
+				}
+				else 
+				{
+
+					client.println("HTTP/1.1 200 OK");
+					client.println("Content-Type: text/plain");
+					client.println("Content-Disposition: attachment");
+					client.println("Content-Length:");
+					client.println("Connnection: close");
+					client.println();
+
+					fileDownload = 1;   //File download has started
+
+					Serial.begin(115200);
+					Serial.println(&MyBuffer[1]);
+					Serial.end();
+					
+					fileDownload = 1;   //File download has started
+
+					readFile();
+
+				}
+			  
+			} 
+			// Check the action to see if it was a GET request.
+			else if (strncmp(path, "/lucid", 6) == 0) // Respond with the path that was accessed.    
+			{         
+
+				//Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in 
+				//404 File not Found!  
+
+				char *filename = "/ACCESS.TXT";
+				strcpy(MyBuffer, filename);
+									
+				// send a standard http response header
+				client.println("HTTP/1.1 200 OK");
+				client.println("Content-Type: text/plain");
+				client.println("Content-Disposition: attachment");
+				client.println("Content-Length:");
+				client.println();
+
+				fileDownload = 1;   //File download has started
+
+				readFile();
+					
+			}   
+			else 
+			{
+				
+				delay(1000);
+				
+				// everything else is a 404
+				client.println("HTTP/1.1 404 Not Found");
+				client.println("Content-Type: text/html");
+				client.println();
+				client.println("<h2>404</h2>\r\n");
+				delay(250);
+				client.println("<h2>File Not Found!</h2>\r\n");
+			}
+		  
+		}   
+		else 
+		{
+		// Unsupported action, respond with an HTTP 405 method not allowed error.
+		client.fastrprintln(F("HTTP/1.1 405 Method Not Allowed"));
+		client.fastrprintln(F(""));
+
+		}
+		// Wait a short period to make sure the response had time to send before
+		// the connection is closed (the CC3000 sends data asyncronously).
+
+		// Close the connection when done.
+		client.close();
+		delay(10);
+		Serial.begin(115200);
+		Serial.println("Client closed");
+		Serial.println("");
+
+		//  check wireless lan connective --if needed re-establish connection
+		if (!cc3000.checkConnected())      // make sure still connected to wireless network
+		{
+
+			reConnect = "";
+			reConnect = "client close";
+			 
+			if (!init_network())    // reconnect to WLAN
+			{
+				delay(15 * 1000); // if no connection, try again later
+				return;
+			} 
+		}
+
+		delay(10);
+		Serial.flush();
+		Serial.end();
     
-  delay(10);
-  Serial.end();
-          
-  }  
+    }  
   
   
       
@@ -1020,16 +1064,16 @@ void listen()   // Listen for client connection
 //  \r\n
 bool parseRequest(uint8_t* buf, int bufSize, char* action, char* path) 
 {
-  // Check if the request ends with \r\n to signal end of first line.
-  if (bufSize < 2)
-  return false;
+	// Check if the request ends with \r\n to signal end of first line.
+	if (bufSize < 2)
+	return false;
 
-  if (buf[bufSize-2] == '\r' && buf[bufSize-1] == '\n') 
-  {
-  parseFirstLine((char*)buf, action, path);
-  return true;
-  }
-  return false;
+	if (buf[bufSize-2] == '\r' && buf[bufSize-1] == '\n') 
+	{
+		parseFirstLine((char*)buf, action, path);
+		return true;
+	}
+	return false;
 }
 
 
@@ -1055,70 +1099,70 @@ void parseFirstLine(char* line, char* action, char* path)
 void readFile()
 {
 
-  Adafruit_CC3000_ClientRef client = httpServer.available(); 
+	Adafruit_CC3000_ClientRef client = httpServer.available(); 
 
-  // Open file for Reading.
-  SdFile webFile;
-  
-  webFile.open(&root, &MyBuffer[1], O_READ);   
-  if (!webFile.isOpen()) error("readFile");
-  
-  bool dload_Cancel = false;
+	// Open file for Reading.
+	SdFile webFile;
 
-  do   // @ adafruit_support_rick's do-while loop
-  {
-  
-    int count = 0;
-    char buffers[BUFSIZE];
-    bool done = false;
+	webFile.open(&root, &MyBuffer[1], O_READ);   
+	if (!webFile.isOpen()) error("readFile");
 
-    while ((!done) && (count < BUFSIZE) && (webFile.available()))
-    { 
-      char c = webFile.read();
-      if (0 > c)
-      done = true;
-      else
-      buffers[count++] = c;
-      delayMicroseconds(1000);
-    }
+	bool dload_Cancel = false;
 
-    if (count)
-    {
-      if (client.connected())
-      client.write( buffers, count);
-      else 
-      {
-        dload_Cancel = true; 
-        break;
-      }
-    } 
+	do   // @ adafruit_support_rick's do-while loop
+	{
 
-  } while (webFile.available());
-  
-  webFile.close();
-  
-  fileDownload = 0;  //File download has finished; allow logging since download has completed
+		int count = 0;
+		char buffers[BUFSIZE];
+		bool done = false;
 
-  delay(500);
+		while ((!done) && (count < BUFSIZE) && (webFile.available()))
+		{ 
+		  char c = webFile.read();
+		  if (0 > c)
+		  done = true;
+		  else
+		  buffers[count++] = c;
+		  delayMicroseconds(1000);
+		}
 
-  MyBuffer[0] = '\0';
-  
-  //client.close(); 
-  
+		if (count)
+		{
+			if (client.connected())
+			client.write( buffers, count);
+			else 
+			{
+				dload_Cancel = true; 
+				break;
+			}
+		} 
+
+	} while (webFile.available());
+
+	webFile.close();
+
+	fileDownload = 0;  //File download has finished; allow logging since download has completed
+
+	delay(500);
+
+	MyBuffer[0] = '\0';
+
+	
 }
 ////////////////////////////////////////////
 void minuteCall(RTCTimerInformation* Sender) 
 {
-  pinMode(RESET, INPUT);   // Resets JK Flip-flop, 74HCT73 --Q becomes LOW until next WatchDog RESET
+	pinMode(RESET, INPUT);   // Resets JK Flip-flop, 74HCT73 --Q becomes LOW until next WatchDog RESET
 }
 ///////////////
 void watchDog()
 {
 
-  //Sends pulse to keep external "SwitchDoc Labs, Dual Watchdog Timer" alive  
-  pinMode(RESET_WATCHDOG1, OUTPUT);
-  delay(200);
-  pinMode(RESET_WATCHDOG1, INPUT); 
+	//Sends pulse to keep external "SwitchDoc Labs, Dual Watchdog Timer" from RESET
+
+	pinMode(RESET_WATCHDOG1, OUTPUT);
+	delay(200);
+	pinMode(RESET_WATCHDOG1, INPUT); 
     
 }
 
@@ -1130,64 +1174,64 @@ void watchDog()
 String getDateTime()
 {
 
-  RTCTimedEvent.readRTC();
-  int temp;
+	RTCTimedEvent.readRTC();
+	int temp;
 
-  temp = (RTCTimedEvent.time.month);
-  if (temp < 10)
-  {
-  SMonth = ("0" + (String)temp);
-  }
-  else
-  {
-  SMonth = (String)temp;
-  }
+	temp = (RTCTimedEvent.time.month);
+	if (temp < 10)
+	{
+		SMonth = ("0" + (String)temp);
+	}
+	else
+	{
+		SMonth = (String)temp;
+	}
 
-  temp = (RTCTimedEvent.time.day);
-  if (temp < 10)
-  {
-  SDay = ("0" + (String)temp);
-  }
-  else
-  {
-  SDay = (String)temp;
-  }
+	temp = (RTCTimedEvent.time.day);
+	if (temp < 10)
+	{
+		SDay = ("0" + (String)temp);
+	}
+	else
+	{
+		SDay = (String)temp;
+	}
 
-  SYear = (String)(RTCTimedEvent.time.year);
+	SYear = (String)(RTCTimedEvent.time.year);
 
-  temp = (RTCTimedEvent.time.hour);
-  if (temp < 10)
-  {
-  SHour = ("0" + (String)temp);
-  }
-  else
-  {
-  SHour = (String)temp;
-  }
+	temp = (RTCTimedEvent.time.hour);
+	if (temp < 10)
+	{
+		SHour = ("0" + (String)temp);
+	}
+	else
+	{
+		SHour = (String)temp;
+	}
 
-  temp = (RTCTimedEvent.time.minute);
-  if (temp < 10)
-  {
-  SMin = ("0" + (String)temp);
-  }
-  else
-  {
-  SMin = (String)temp;
-  }
+	temp = (RTCTimedEvent.time.minute);
+	if (temp < 10)
+	{
+		SMin = ("0" + (String)temp);
+	}
+	else
+	{
+	SMin = (String)temp;
+	}
 
-  temp = (RTCTimedEvent.time.second);
-  if (temp < 10)
-  {
-  SSec = ("0" + (String)temp);
-  }
-  else
-  {
-  SSec = (String)temp;
-  }
+	temp = (RTCTimedEvent.time.second);
+	if (temp < 10)
+	{
+		SSec = ("0" + (String)temp);
+	}
+	else
+	{
+		SSec = (String)temp;
+	}
 
-  dtStamp = SMonth + '/' + SDay + '/' + SYear + " , " + SHour + ':' + SMin + ':' + SSec;
+	dtStamp = SMonth + '/' + SDay + '/' + SYear + " , " + SHour + ':' + SMin + ':' + SSec;
 
-  return(dtStamp);
+	return(dtStamp);
 }
 
 ////////////////
@@ -1195,42 +1239,42 @@ float getDHT22()
 {
   
 
-  // Reading temperature or humidity takes about 250 milliseconds!
-  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  h = dht.readHumidity();
-  // Read temperature as Celsius
-  t = dht.readTemperature();
-  // Read temperature as Fahrenheit
-  f = dht.readTemperature(true);
-  
-  // Wait a few seconds between measurements.
-  delay(500);
+	// Reading temperature or humidity takes about 250 milliseconds!
+	// Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+	h = dht.readHumidity();
+	// Read temperature as Celsius
+	t = dht.readTemperature();
+	// Read temperature as Fahrenheit
+	f = dht.readTemperature(true);
 
-  // Check if any reads failed and exit early (to try again).
-  if (isnan(h) || isnan(t) || isnan(f)) 
-  {
-  Serial.println("Failed to read from DHT sensor!");
-  }
+	// Wait a few seconds between measurements.
+	delay(500);
 
-  // Compute heat index 
-  // Must send in temp in Fahrenheit!
-  hi = dht.computeHeatIndex(f, h);
+	// Check if any reads failed and exit early (to try again).
+	if (isnan(h) || isnan(t) || isnan(f)) 
+	{
+	Serial.println("Failed to read from DHT sensor!");
+	}
 
-  double VaporPressureValue = h * 0.01 * 6.112 * exp((17.62 * t) / (t + 243.12));
-  double Numerator =243.12 * log(VaporPressureValue) - 440.1;
-  double Denominator = 19.43 - (log(VaporPressureValue));
-  dewPoint = Numerator / Denominator;
+	// Compute heat index 
+	// Must send in temp in Fahrenheit!
+	hi = dht.computeHeatIndex(f, h);
+
+	double VaporPressureValue = h * 0.01 * 6.112 * exp((17.62 * t) / (t + 243.12));
+	double Numerator =243.12 * log(VaporPressureValue) - 440.1;
+	double Denominator = 19.43 - (log(VaporPressureValue));
+	dewPoint = Numerator / Denominator;
 } 
 ////////////////
 void getBMP085()   //Get Barometric pressure readings
 {
 
-  dps.getTemperature(&Temperature); 
-  dps.getPressure(&Pressure);
-  dps.getAltitude(&Altitude);
+	dps.getTemperature(&Temperature); 
+	dps.getPressure(&Pressure);
+	dps.getAltitude(&Altitude);
 
-  currentPressure = (Pressure *  0.000295333727);   //convert to inches mercury
-  milliBars = ((Pressure) * .01);   //Convert to millibars
+	currentPressure = (Pressure *  0.000295333727);   //convert to inches mercury
+	milliBars = ((Pressure) * .01);   //Convert to millibars
 }
 
 //////////////////////// 
@@ -1238,17 +1282,17 @@ float updateDifference()  //Pressure difference for fifthteen minute interval
 {
 
 
-  //Function to find difference in Barometric Pressure
-  //First loop pass pastPressure and currentPressure are equal resulting in an incorrect difference result.  Output "...Processing"
-  //Future loop passes difference results are correct
+	//Function to find difference in Barometric Pressure
+	//First loop pass pastPressure and currentPressure are equal resulting in an incorrect difference result.  Output "...Processing"
+	//Future loop passes difference results are correct
 
-  difference = currentPressure - pastPressure;  //This will be pressure from this pass thru loop, pressure1 will be new pressure reading next loop pass
-  if (difference == currentPressure)
-  {
-    difference = 0; 
-  }   
-  
-  return(difference);  //Barometric pressure change in inches of Mecury 
+	difference = currentPressure - pastPressure;  //This will be pressure from this pass thru loop, pressure1 will be new pressure reading next loop pass
+	if (difference == currentPressure)
+	{
+	 difference = 0; 
+	}   
+
+	return(difference);  //Barometric pressure change in inches of Mecury 
   
 }
 
@@ -1256,10 +1300,10 @@ float updateDifference()  //Pressure difference for fifthteen minute interval
 void beep(unsigned char delayms)
 {
 
-  // wait for a delayms ms
-  digitalWrite(sonalertPin, HIGH);       // High turns on Sonalert tone
-  delay(3000); 
-  digitalWrite(sonalertPin, LOW);  //Low turns of Sonalert tone
+	// wait for a delayms ms
+	digitalWrite(sonalertPin, HIGH);       // High turns on Sonalert tone
+	delay(3000); 
+	digitalWrite(sonalertPin, LOW);  //Low turns of Sonalert tone
 
 }  
 
@@ -1267,80 +1311,80 @@ void beep(unsigned char delayms)
 void newDay()   //Collect Data for twenty-four hours; then start a new day
 {
 
-  //Do file maintence on 7th day of week at appointed time from RTC.  Assign new name to "log.txt."  Create new "log.txt."
-  if ((RTCTimedEvent.time.dayOfWeek) == 7)
-  {
-    fileStore();
-  }
+	//Do file maintence on 7th day of week at appointed time from RTC.  Assign new name to "log.txt."  Create new "log.txt."
+	if ((RTCTimedEvent.time.dayOfWeek) == 7)
+	{
+	   fileStore();
+	}
 
-  //id = 1;   //Reset id for start of new day
-  //Write logFile Header
+	//id = 1;   //Reset id for start of new day
+	//Write logFile Header
 
-  // Open file from appended writing
-  SdFile logFile("log.txt", O_WRITE | O_CREAT | O_APPEND);
-  if (!logFile.isOpen()) error("log");
-  {
-    Serial.begin(115200);
+	// Open file from appended writing
+	SdFile logFile("log.txt", O_WRITE | O_CREAT | O_APPEND);
+	if (!logFile.isOpen()) error("log");
+	{
+		Serial.begin(115200);
 
-    delay(1000);
-    logFile.println(", , , , , ,"); //Just a leading blank line, in case there was previous data
-    logFile.println("Date, Time, Humidity, Dew Point, Temperature, Heat Index, in. Hg., Difference, millibars, atm, Altitude");
-    logFile.close();
-    Serial.println("");
-    Serial.println("Date, Time, Humidity, Dew Point, Temperature, Heat Index, in. Hg., Difference, millibars, atm, Altitude");
-    Serial.flush();
-    Serial.end();
-  }
+		delay(1000);
+		logFile.println(", , , , , ,"); //Just a leading blank line, in case there was previous data
+		logFile.println("Date, Time, Humidity, Dew Point, Temperature, Heat Index, in. Hg., Difference, millibars, atm, Altitude");
+		logFile.close();
+		Serial.println("");
+		Serial.println("Date, Time, Humidity, Dew Point, Temperature, Heat Index, in. Hg., Difference, millibars, atm, Altitude");
+		Serial.flush();
+		Serial.end();
+	}
 }
 
 ////////////////
 void fileStore()   //If 7th day of week, rename "log.txt" to ("log" + month + day + ".txt") and create new, empty "log.txt"
 {
   
-  // create a file and write one line to the file
-  SdFile logFile("log.txt", O_WRITE | O_CREAT );
+	// create a file and write one line to the file
+	SdFile logFile("log.txt", O_WRITE | O_CREAT );
 
-  if (!logFile.isOpen()) 
-  {
-   error("log -open");
-  }
+	if (!logFile.isOpen()) 
+	{
+		error("log.txt --new -open");
+	}
 
-  // rename the file log.txt
-  // sd.vwd() is the volume working directory, root. 
+	// rename the file log.txt
+	// sd.vwd() is the volume working directory, root. 
 
-  logFileName = ""; 
-  logFileName = "log";
-  logFileName += (RTCTimedEvent.time.month);
-  logFileName += (RTCTimedEvent.time.day); 
-  logFileName += ".txt"; 
-  //Serial.println(logFileName.c_str());
+	logFileName = ""; 
+	logFileName = "log";
+	logFileName += (RTCTimedEvent.time.month);
+	logFileName += (RTCTimedEvent.time.day); 
+	logFileName += ".txt"; 
+	//Serial.println(logFileName.c_str());
 
-  if(sd.exists("log.txt"))
-  { 
-    logFile.rename(sd.vwd(), logFileName.c_str());
-    logFile.close();
-  }
-  else
-  {
-    exit;
-  }
+	if(sd.exists("log.txt"))
+	{ 
+		logFile.rename(sd.vwd(), logFileName.c_str());
+		logFile.close();
+	}
+	else
+	{
+		exit;
+	}
 
-  // create a new "log.txt" file for appended writing
-  logFile.open("log.txt", O_WRITE | O_CREAT | O_APPEND);
-  logFile.println("");
-  logFile.close();
+	// create a new "log.txt" file for appended writing
+	logFile.open("log.txt", O_WRITE | O_CREAT | O_APPEND);
+	logFile.println("");
+	logFile.close();
 
-  Serial.begin(115200);
+	Serial.begin(115200);
 
-  Serial.println("");
-  Serial.println("New LOG.TXT created");
+	Serial.println("");
+	Serial.println("New LOG.TXT created");
 
-  // list files
-  cout << pstr("------") << endl;
-  sd.ls(LS_R);
+	// list files
+	cout << pstr("------") << endl;
+	sd.ls(LS_R);
 
-  Serial.flush();
-  Serial.end();
+	Serial.flush();
+	Serial.end();
 
 }
 
@@ -1348,81 +1392,80 @@ void fileStore()   //If 7th day of week, rename "log.txt" to ("log" + month + da
 int8_t init_network()   //Guard connection  --restart wireless connection if connection is lost
 {
 
-  Adafruit_CC3000_Client  client = cc3000.connectTCP(ip, LISTEN_PORT);   //Guard --  re-initalize WLAN connectivity
+	Serial.begin(115200);
 
-  getDateTime();
+	Adafruit_CC3000_Client  client = cc3000.connectTCP(ip, LISTEN_PORT);   //Guard --  re-initalize WLAN connectivity
 
-  Serial.println("Reconnecting to WLAN:  " + dtStamp +" Called from:  " + reConnect);  
-  cc3000.reboot();
+	getDateTime();
 
-  // create a file and write one line to the file
-  SdFile serverFile;
-  serverFile.open("Server.txt", O_WRITE | O_CREAT | O_APPEND);
-  if (!serverFile.isOpen()) error("Server");
+	Serial.println("Reconnecting to WLAN:  " + dtStamp +" Called from:  " + reConnect);  
+	cc3000.reboot();
 
-  if (serverFile.isOpen())
-  {
-    getDateTime();
+	// create a file and write one line to the file
+	SdFile serverFile;
+	serverFile.open("Server.txt", O_WRITE | O_CREAT | O_APPEND);
+	if (!serverFile.isOpen()) error("Server");
 
-    serverFile.print("Reconnecting to Wireless LAN:  " + dtStamp + "  ");
-    serverFile.println(reConnect);  //Log where "init_network" was called from in the Sketch
-    serverFile.close();
-  }
-  else
-  {
-    Serial.println("Couldn't open server file");
-  }
+	if (serverFile.isOpen())
+	{
+		getDateTime();
 
-  // Set up the CC3000, connect to the access point, and get an IP address.
+		serverFile.print("Reconnecting to Wireless LAN:  " + dtStamp + "  ");
+		serverFile.println(reConnect);  //Log where "init_network" was called from in the Sketch
+		serverFile.close();
+	}
+	else
+	{
+		Serial.println("Couldn't open server file");
+	}
 
-  if (!cc3000.begin() )
+	// Set up the CC3000, connect to the access point, and get an IP address.
 
-  Serial.begin(115200);
-  while (! Serial);
+	if (!cc3000.begin() )
 
-  delay(500);
+	while (! Serial);
 
-  /* Attempt to connect to an access point */
-  char *ssid = WLAN_SSID;             /* Max 32 chars */
-  Serial.print(F("\nAttempting to connect to "));
-  Serial.println(ssid);
+	delay(500);
+
+	/* Attempt to connect to an access point */
+	char *ssid = WLAN_SSID;             /* Max 32 chars */
+	Serial.print(F("\nAttempting to connect to "));
+	Serial.println(ssid);
 
 
-  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY))
-  {
-    Serial.println(F("Failed!"));
-    while(1);
-    return -1;
-  }
+	if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY))
+	{
+		Serial.println(F("Failed!"));
+		while(1);
+		return -1;
+	}
 
-  delay(15 * 1000);
+	delay(15 * 1000);
 
-  Serial.println(F("Connecting to Wireless Network!"));
-  Serial.println(F("Request DHCP..."));
+	Serial.println(F("Connecting to Wireless Network!"));
+	Serial.println(F("Request DHCP..."));
 
-  while (!cc3000.checkDHCP())
-  {
-    delay(100);  
-  }
+	while (!cc3000.checkDHCP())
+	{
+		delay(100);  
+	}
 
-  // Display the IP address DNS, Gateway, etc. 
-  while (! displayConnectionDetails())
-  {
-    delay(1000);
-  }
+	// Display the IP address DNS, Gateway, etc. 
+	while (! displayConnectionDetails())
+	{
+		delay(1000);
+	}
 
-  httpServer.begin();
-  
-  Serial.println("");
-  Serial.println("Server Started");
-  Serial.println("Connected to Wireless LAN:  " + dtStamp);
-  Serial.println("");
-  Serial.println(F("Listening for connections..."));
-  Serial.println("");
-  
-  Serial.end();
-  
-  loop();
+	httpServer.begin();
+
+	Serial.println("");
+	Serial.println("Server Started");
+	Serial.println("Connected to Wireless LAN:  " + dtStamp);
+	Serial.println("");
+	Serial.println(F("Listening for connections..."));
+	Serial.println("");
+
+	Serial.end(); 
 
 }
 
@@ -1430,23 +1473,24 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 // Tries to read the IP address and other connection details
 bool displayConnectionDetails()
 {
-  uint32_t ipAddress, netmask, gateway, dhcpserv, dnsserv;
+	uint32_t ipAddress, netmask, gateway, dhcpserv, dnsserv;
 
-  if(!cc3000.getIPAddress(&ipAddress, &netmask, &gateway, &dhcpserv, &dnsserv))
-  {
-    Serial.println(F("Unable to retrieve the IP Address!\r\n"));
-    return false;
-  }
-  else
-  {
-    Serial.print(F("\nIP Addr: ")); cc3000.printIPdotsRev(ipAddress);
-    Serial.print(F("\nNetmask: ")); cc3000.printIPdotsRev(netmask);
-    Serial.print(F("\nGateway: ")); cc3000.printIPdotsRev(gateway);
-    Serial.print(F("\nDHCPsrv: ")); cc3000.printIPdotsRev(dhcpserv);
-    Serial.print(F("\nDNSserv: ")); cc3000.printIPdotsRev(dnsserv);
-    Serial.println();
-    return true;
-  }
+	if(!cc3000.getIPAddress(&ipAddress, &netmask, &gateway, &dhcpserv, &dnsserv))
+	{
+		Serial.println(F("Unable to retrieve the IP Address!\r\n"));
+		return false;
+	}
+	else
+	{
+		Serial.print(F("\nIP Addr: ")); cc3000.printIPdotsRev(ipAddress);
+		Serial.print(F("\nNetmask: ")); cc3000.printIPdotsRev(netmask);
+		Serial.print(F("\nGateway: ")); cc3000.printIPdotsRev(gateway);
+		Serial.print(F("\nDHCPsrv: ")); cc3000.printIPdotsRev(dhcpserv);
+		Serial.print(F("\nDNSserv: ")); cc3000.printIPdotsRev(dnsserv);
+		Serial.println();
+		return true;
+	}
 }
+
 
 
