@@ -1,6 +1,6 @@
 /********************************************
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 11/10/2016 22:44 PM EST         ■    
+  ■ Updated 11/17/2016 15:30 PM EST         ■    
   ■ Using Arduino Mega 2560,                ■                                
   ■ Adafruit CC3000 Shield, DS1307,         ■ 
   ■ DHT22, and BMP085.                      ■ 
@@ -21,6 +21,11 @@ to allow competion of Weather Observation HTML and allow connection to close.
 74HC73, pinMode(RESET, INPUT) moved to function minuteCall  
 
 Added another init network() in logtoSD()
+
+Added cc3000.getStatus()  to check for open socket; which may not allow client to close.
+
+Added listen() to end of init_network(); instances of init_network called from Loop hanging sketch
+
  
 ****************************************************/
 
@@ -137,7 +142,7 @@ Added another init network() in logtoSD()
                  SPI_CLOCK_DIVIDER); // you can change this clock speed
          
   // Local server IP, port
-  uint32_t ip = cc3000.IP2U32(10,0,0,15);
+  uint32_t ip = cc3000.IP2U32(10,0,0,49);
         
          
   #define WLAN_SSID       "Security-22"   // cannot be longer than 32 characters!
@@ -661,6 +666,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
       return;
     }
   }
+  listen();
 }
 
 /////////////////
@@ -709,6 +715,7 @@ void listen()   // Listen for client connection
 		} 
 	}
 
+	
 	if (client) 
 	{
 	  
@@ -732,7 +739,7 @@ void listen()   // Listen for client connection
 			while (!parsed && (millis() < endtime) && (bufindex < BUFFER_SIZE))
 			{
 
-				if (client.available()) 
+				if (client.available() > 0)   //Changed 11/15/2016  from if(client.availabe())
 				{
 					buffer[bufindex++] = client.read(); 
 				}
@@ -754,7 +761,7 @@ void listen()   // Listen for client connection
 				  
 				getDateTime(); //get accessed date and time
 
-				char ip1String[] = "10.0.0.146";   //Server ip address
+				char ip1String[] = "10.0.0.146";   //Host ip address
 				char ip2String[16] = "";   //client.ip_addr = clientIP[16]
 				snprintf(ip2String, 16, "%d.%d.%d.%d", client.ip_addr[3], client.ip_addr[2], client.ip_addr[1], client.ip_addr[0]);
 
@@ -767,7 +774,7 @@ void listen()   // Listen for client connection
 
 				if (!logFile.isOpen()) error("log");
 
-			  	if (0 == (strncmp(ip1String, ip2String, 16)))
+				if (0 == (strncmp(ip1String, ip2String, 16)))
 				{
 					//Serial.println("addresses match");
 					exit;
@@ -892,7 +899,7 @@ void listen()   // Listen for client connection
 				client.fastrprintln(F("</html>\r\n"));
 
 				fileDownload = 0;
-
+				
 			} 
 			// Check the action to see if it was a GET request.
 			else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.  
@@ -916,7 +923,7 @@ void listen()   // Listen for client connection
 			client.println("</html>\r\n");
 
 			fileDownload = 0;
-						
+			
 			}       
 			else if((strncmp(path, "/log.txt", 7) == 0) || (strncmp(path, "/LOG", 4) == 0) ||  (strcmp(path, "/ACCESS.TXT") == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0)) // Respond with the path that was accessed. 
 			{ 
@@ -950,6 +957,7 @@ void listen()   // Listen for client connection
 					client.println("/:</h2>");
 					ListFiles(client,LS_SIZE,file); 
 					file.close();
+					
 				}
 				else 
 				{
@@ -970,7 +978,7 @@ void listen()   // Listen for client connection
 					fileDownload = 1;   //File download has started
 
 					readFile();
-
+					
 				}
 			  
 			} 
@@ -991,10 +999,10 @@ void listen()   // Listen for client connection
 				client.println("Content-Length:");
 				client.println();
 
-				fileDownload = 1;   //File download has started
+				fileDownload = 1;   //File download has started 
 
 				readFile();
-					
+				
 			}   
 			else 
 			{
@@ -1021,13 +1029,22 @@ void listen()   // Listen for client connection
 		// Wait a short period to make sure the response had time to send before
 		// the connection is closed (the CC3000 sends data asyncronously).
 
-		// Close the connection when done.
-		client.close();
-		delay(10);
-		Serial.begin(115200);
-		Serial.println("Client closed");
-		Serial.println("");
-
+		if(cc3000.getStatus() == STATUS_CONNECTED)
+		{		
+			// Close the connection when done.
+			client.close();
+			delay(10);
+			Serial.begin(115200);
+			Serial.println("Client closed");
+			Serial.println("");
+		}
+		
+		if(cc3000.getStatus() == STATUS_DISCONNECTED)
+		{
+			client.close();
+			Serial.println("Client closed --DISCONNECTED");
+		}
+		
 		//  check wireless lan connective --if needed re-establish connection
 		if (!cc3000.checkConnected())      // make sure still connected to wireless network
 		{
@@ -1045,9 +1062,9 @@ void listen()   // Listen for client connection
 		delay(10);
 		Serial.flush();
 		Serial.end();
-    
-    }  
-  
+	
+	}  
+	
   
       
 }
@@ -1423,7 +1440,7 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 
 	if (!cc3000.begin() )
 
-	while (! Serial);
+	while (! Serial); 
 
 	delay(500);
 
@@ -1466,6 +1483,8 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 	Serial.println("");
 
 	Serial.end(); 
+	
+	listen();
 
 }
 
