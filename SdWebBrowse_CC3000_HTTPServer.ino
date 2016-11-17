@@ -145,8 +145,8 @@ Added listen() to end of init_network(); instances of init_network called from L
   uint32_t ip = cc3000.IP2U32(10,0,0,49);
         
          
-  #define WLAN_SSID       "Security-22"   // cannot be longer than 32 characters!
-  #define WLAN_PASS       "1048acdc7388"
+  #define WLAN_SSID       "Your-SSID"   // cannot be longer than 32 characters!
+  #define WLAN_PASS       "Your-password"   //Network password
   // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
   #define WLAN_SECURITY   WLAN_SEC_WPA2
 
