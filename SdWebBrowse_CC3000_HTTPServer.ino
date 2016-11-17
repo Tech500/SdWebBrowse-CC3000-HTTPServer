@@ -983,7 +983,7 @@ void listen()   // Listen for client connection
 			  
 			} 
 			// Check the action to see if it was a GET request.
-			else if (strncmp(path, "/lucid", 6) == 0) // Respond with the path that was accessed.    
+			else if (strncmp(path, "/put-your-path-here", 6) == 0) // Respond with the path that was accessed.    
 			{         
 
 				//Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in 
