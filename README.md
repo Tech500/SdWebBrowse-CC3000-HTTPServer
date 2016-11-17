@@ -33,6 +33,10 @@ I am interested in sudden drop of Barometric pressure in a 15 minute interval. S
 
 14.	Added ability to cancel download; without hanging Sketch.
 
+15. Added cc3000.getStatus()  call to check for open socket; which may not allow client to close.
+
+16. Added listen() call to end of init_network(); instances of init_network called from Loop hanging sketch
+
 
  Project web page:  http://tinyurl.com/zataxoo
 
