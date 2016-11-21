@@ -1,6 +1,6 @@
 /********************************************
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 11/19/2016 16:30 PM EST         ■    
+  ■ Updated 11/21/2016 18:42 PM EST         ■    
   ■ Using Arduino Mega 2560,                ■                                
   ■ Adafruit CC3000 Shield, DS1307,         ■ 
   ■ DHT22, and BMP085.                      ■ 
@@ -11,7 +11,7 @@
   ■ Modified Sketch by "Tech500" with       ■ 
   ■ help from "Adafruit Forum"              ■                           
  
-
+Optimized routine used for resetting the "Status Bit" 
 
 Client IP address is returned now.  *** Requires modified Adafruit CC3000 Library ***
       
@@ -110,9 +110,9 @@ Added listen() to end of init_network(); instances of init_network called from L
   
   float difference;
   
-  #define RESET_WATCHDOG1 41  //SwitchDoc Labs external Watchdog Dual Timer
+  #define RESET_WATCHDOG1 35  //SwitchDoc Labs external Watchdog Dual Timer, JP7
   #define Q 43 //74LS73 Q 
-  #define RESET 43  //74HCT73 RESET
+  #define RESET 37  //74HCT73 RESET
 
   //JP3 goes LOW to reset Arduino Mega
 
@@ -213,7 +213,7 @@ void setup(void)
   
   pinMode(Q, INPUT_PULLUP);  //Monitoring status of 74HC73, Q Output
   
-  pinMode(RESET, OUTPUT);
+  //pinMode(RESET, OUTPUT);
   
   Wire.begin();
 
@@ -295,14 +295,16 @@ void setup(void)
 
   // Start listening for connections
   httpServer.begin();
-
+  
+  
+ 
   /////////////// JK Flip-Flop 74HC73, Q Status Monitoring ///////////////////////////////////////
     
-  delay(250); 
+  delay(500); 
+    
+  getDateTime(); 
   
-  getDateTime();
-  
-  if((value) == 1) 
+  if(value == 1)  
   {
 
     //Creates an entry in "Server.txt" for every RESET cause by "Dual Watchdog Timer"
@@ -315,14 +317,17 @@ void setup(void)
     serverFile.close();
     Serial.print("Watchdog RESET  ");
     Serial.println(dtStamp + "  ");
+	Serial.println("Listening for connections...  ");
     //Serial.println(value);
 
-    //Sends LOW to RESET of the 74HC73, JK Flip-flop 
-    delay(2000);
-    digitalWrite(RESET, LOW);
+    //Sends LOW to RESET the 74HC73, JK Flip-flop 
+	delay(1000);
+    digitalWrite(RESET, HIGH);
+	delay(10);
+	digitalWrite(RESET, LOW);
     
   }
-  else if((value) == 0)
+  else 
   {
 
     //Creates an entry in "Server.txt" for every RESET; caused by opening Serial Monitor
@@ -335,22 +340,14 @@ void setup(void)
     serverFile.close();  
     Serial.print("Manual RESET  ");
     Serial.println(dtStamp + "  ");
+	Serial.println("Listening for connections...  ");
     //Serial.println(value);
 
-    //Sends LOW to RESET of the 74HC73, JK Flip-flop 
-    delay(2000);
-    digitalWrite(RESET, HIGH);
-  
   }
-  delay(1000);
-  digitalWrite(RESET, LOW);
-  
+   
   ///////////////////////////////////////////////////////////////////////////////////////////////
   
-  Serial.println("Listening for connections...  ");
-  Serial.println("");
-  Serial.flush();
-  Serial.end();
+  
   
   //Uncomment to set Real Time Clock --only needs to be run once
 
@@ -400,6 +397,7 @@ void setup(void)
 
   //lcdDisplay();      //   LCD 1602 Display function --used for inital display
   
+  Serial.flush();
   Serial.end();
 
 }
@@ -483,25 +481,11 @@ char ListFiles(Adafruit_CC3000_ClientRef client, uint8_t flags, SdFile dir)
 
 
 ///////////
-void loop()
+void loop() 
 {
 
-  watchDog(); 
+  watchDog();   //"Pulse" the Watchdog timer to keep it "alive" and keep Arduino Mega from being RESET
   
-  //  check wireless lan connective --if needed re-establish connection
-  if (!cc3000.checkConnected())      // make sure still connected to wireless network
-  {
-
-    reConnect = "";
-    reConnect = "Loop";
-
-    if (!init_network())    // reconnect to WLAN
-    {
-      delay(15 * 1000); // if no connection, try again later
-      return;
-    }
-  }
-
   fileDownload = 0; 
 
   RTCTimedEvent.loop();
@@ -526,7 +510,23 @@ void loop()
   && ((RTCTimedEvent.time.second) == 00))
   {
 
-    getDateTime();
+    watchDog();   //"Pulse" the Watchdog timer to keep it "alive" and keep Arduino Mega from being RESET
+  
+	//  check wireless lan connective --if needed re-establish connection
+	if (!cc3000.checkConnected())      // make sure still connected to wireless network
+	{
+
+	reConnect = "";
+	reConnect = "Loop";
+
+	if (!init_network())    // reconnect to WLAN
+	{
+	  delay(15 * 1000); // if no connection, try again later
+	  return;
+	}
+	}
+
+	getDateTime();
 
     lastUpdate = dtStamp;   //store dtstamp for use on dynamic web page
     
@@ -665,7 +665,6 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
       return;
     }
   }
-  listen();
 }
 
 /////////////////
@@ -718,7 +717,9 @@ void listen()   // Listen for client connection
   if (client) 
   {
     
-      // Process this request until it completes or times out.
+      watchDog();   //"Pulse" the Watchdog timer to keep it "alive" and keep Arduino Mega from being RESET
+	  
+	  // Process this request until it completes or times out.
       // Note that this is explicitly limited to handling one request at a time!
 
       // Clear the incoming data buffer and point to the beginning of it.  
@@ -809,8 +810,6 @@ void listen()   // Listen for client connection
         client.println("Content-Length:");
         client.println();
 
-        fileDownload = 1;   //File download has started
-
         readFile();
 
         fileDownload = 0;   //File download has ended
@@ -823,8 +822,6 @@ void listen()   // Listen for client connection
       // Check the action to see if it was a GET request.
       if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.                                                        
       { 
-
-        fileDownload = 1;
 
         // First send the success response code.
         client.fastrprintln(F("HTTP/1.1 200 OK"));
@@ -897,8 +894,6 @@ void listen()   // Listen for client connection
         client.fastrprintln(F("<br />\r\n"));
         client.fastrprintln(F("</html>\r\n"));
 
-        fileDownload = 0;
-        
       } 
       // Check the action to see if it was a GET request.
       else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.  
@@ -968,21 +963,17 @@ void listen()   // Listen for client connection
           client.println("Connnection: close");
           client.println();
 
-          fileDownload = 1;   //File download has started
-
           Serial.begin(115200);
           Serial.println(&MyBuffer[1]);
           Serial.end();
           
-          fileDownload = 1;   //File download has started
-
           readFile();
           
         }
         
       } 
       // Check the action to see if it was a GET request.
-      else if (strncmp(path, "/lucid", 6) == 0) // Respond with the path that was accessed.    
+      else if (strncmp(path, "/lucid-2", 8) == 0) // Respond with the path that was accessed.    
       {         
 
         //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in 
@@ -1001,8 +992,8 @@ void listen()   // Listen for client connection
         fileDownload = 1;   //File download has started 
 
         readFile();
-        
-      }   
+		
+	  }   
       else 
       {
         
@@ -1187,7 +1178,7 @@ void watchDog()
   //Sends pulse to keep external "SwitchDoc Labs, Dual Watchdog Timer" from RESET
 
   pinMode(RESET_WATCHDOG1, OUTPUT);
-  delay(2000);
+  delay(200);
   pinMode(RESET_WATCHDOG1, INPUT); 
     
 }
