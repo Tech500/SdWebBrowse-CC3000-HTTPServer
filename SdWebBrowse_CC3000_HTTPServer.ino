@@ -1,6 +1,6 @@
 /********************************************
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 12/09/2016 20:59 PM EST         ■
+  ■ Updated 12/11/2016 21:58 PM EST         ■
   ■ Using Arduino Mega 2560,                ■
   ■ Adafruit CC3000 Shield, DS1307,         ■
   ■ DHT22, and BMP085.                      ■
@@ -8,7 +8,7 @@
   ■ Based on Adafruit CC3000 library        ■
   ■ Example:  HTTPServer.ino                ■
   ■                                         ■
-  ■ Modified Sketch by "Tech500" with       ■
+  ■ Modified Sketch by "tech500" with       ■
   ■ help from "Adafruit Forum,"             ■
   ■ "Arduino.cc forum," and                 ■
   ■ "Arduino Stack Exchange."               ■
@@ -214,7 +214,9 @@ void setup(void)
      pinMode(sonalertPin, OUTPUT);  //Used for Piezo buzzer
 
      pinMode(Q, INPUT_PULLUP);  //Monitoring status of 74HC73, Q Output
-
+     
+     pinMode(RESET, OUTPUT);
+     
      Wire.begin();
 
      sd.begin(chipSelect);
@@ -301,7 +303,7 @@ void setup(void)
 
 /////////////// J-K Flip-Flop 74HC73,  Status of Q Monitor ///////////////////////////////////////
 
-     delay(250);
+     delay(10);
 
      getDateTime();
 
@@ -321,12 +323,6 @@ void setup(void)
           Serial.println("Listening for connections...  ");
           //Serial.println(value);
 
-          //Sends LOW to RESET the 74HC73, JK Flip-flop
-          digitalWrite(RESET, LOW);
-          delay(500);
-          digitalWrite(RESET, HIGH);
-
-
      }
      else
      {
@@ -343,8 +339,14 @@ void setup(void)
           Serial.println(dtStamp + "  ");
           Serial.println("Listening for connections...  ");
           //Serial.println(value);
-
+          
      }
+     //Sends LOW to RESET the 74HC73, JK Flip-flop
+     digitalWrite(RESET, LOW);
+     delay(10);
+     digitalWrite(RESET, HIGH);
+     delay(10);
+     digitalWrite(RESET, LOW);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -488,68 +490,70 @@ void loop()
 
      watchDog();   //"Pulse" the Watchdog timer to keep it "alive" and keep Arduino Mega from being RESET
 
-     fileDownload = 0;
-
-     RTCTimedEvent.loop();
-     delay(50);
-     RTCTimedEvent.readRTC();
-     delay(50);
-
-     //Collect  "log.txt" Data for one day; do it early so day of week still equals 7
-     if ((((RTCTimedEvent.time.hour) == 23 )  &&
-               ((RTCTimedEvent.time.minute) == 58) &&
-               ((RTCTimedEvent.time.second) == 00)))
+     //  check wireless lan connective --if needed re-establish connection
+     if (!cc3000.checkConnected())      // make sure still connected to wireless network
      {
-          newDay();
+
+          reConnect = "";
+          reConnect = "Loop";
+
+          if (!init_network())    // reconnect to WLAN
+          {
+               delay(15 * 1000); // if no connection, try again later
+               return;
+          }
      }
+     
+          fileDownload = 0;
 
-     //Write Data at 15 minute interval
+          RTCTimedEvent.loop();
+          delay(50);
+          RTCTimedEvent.readRTC();
+          delay(50);
 
-     if ((((RTCTimedEvent.time.minute) == 0)||
+          //Collect  "log.txt" Data for one day; do it early so day of week still equals 7
+          if (((RTCTimedEvent.time.hour) == 23 )  &&
+               ((RTCTimedEvent.time.minute) == 58) &&
+               ((RTCTimedEvent.time.second) == 00))
+          {
+               newDay();
+          }
+
+          //Write Data at 15 minute interval
+
+          if ((((RTCTimedEvent.time.minute) == 0)||
                ((RTCTimedEvent.time.minute) == 15)||
                ((RTCTimedEvent.time.minute) == 30)||
                ((RTCTimedEvent.time.minute) == 45))
                && ((RTCTimedEvent.time.second) == 00))
-     {
-
-          //  check wireless lan connective --if needed re-establish connection
-          if (!cc3000.checkConnected())      // make sure still connected to wireless network
           {
 
-               reConnect = "";
-               reConnect = "Loop";
+               
 
-               if (!init_network())    // reconnect to WLAN
-               {
-                    delay(15 * 1000); // if no connection, try again later
-                    return;
-               }
+               getDateTime();
+
+               lastUpdate = dtStamp;   //store dtstamp for use on dynamic web page
+
+               getDHT22();
+
+               getBMP085();
+
+               updateDifference();  //Get Barometric Pressure difference
+
+               logtoSD();   //Output to SD Card  --Log to SD on 15 minute interval.
+
+               delay(100);  //Be sure there is enough SD write time
+
+               //lcdDisplay();      //   LCD 1602 Display function --used for 15 minute update
+
+               pastPressure = (Pressure *  0.000295333727);   //convert to inches mercury
+
           }
-
-          getDateTime();
-
-          lastUpdate = dtStamp;   //store dtstamp for use on dynamic web page
-
-          getDHT22();
-
-          getBMP085();
-
-          updateDifference();  //Get Barometric Pressure difference
-
-          logtoSD();   //Output to SD Card  --Log to SD on 15 minute interval.
-
-          delay(100);  //Be sure there is enough SD write time
-
-          //lcdDisplay();      //   LCD 1602 Display function --used for 15 minute update
-
-          pastPressure = (Pressure *  0.000295333727);   //convert to inches mercury
-
-     }
-     else
-     {
-          listen();  //Listen for web client
-     }
-
+          else
+          {
+               listen();  //Listen for web client
+          }
+     
 }
 
 //////////////
@@ -578,7 +582,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           logFile.print(h);
           logFile.print(" % , ");
           logFile.print("Dew Point:  ");
-          logFile.print((dewPoint) + (9/5 + 32));
+          logFile.print((dewPoint) + (9/5 + 32)); 
           logFile.print(" F. , ");
           logFile.print(f);
           logFile.print("  F. , ");
@@ -647,24 +651,27 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
                     beep(50);  //Duration of Sonalert tone
 
                }
+               
+               //  check wireless lan connective --if needed re-establish connection
+               if (!cc3000.checkConnected())      // make sure still connected to wireless network
+               {
+
+                    reConnect = "";
+                    reConnect = "Log";
+
+                    if (!init_network())    // reconnect to WLAN
+                    {
+                         delay(15 * 1000); // if no connection, try again later
+                         return;
+                    }
+               }
+               
           }
           Serial.flush();
           Serial.end();
      }
 
-     //  check wireless lan connective --if needed re-establish connection
-     if (!cc3000.checkConnected())      // make sure still connected to wireless network
-     {
-
-          reConnect = "";
-          reConnect = "Log";
-
-          if (!init_network())    // reconnect to WLAN
-          {
-               delay(15 * 1000); // if no connection, try again later
-               return;
-          }
-     }
+     
 }
 
 /////////////////
@@ -716,8 +723,6 @@ void listen()   // Listen for client connection
      if (client)
      {
 
-          watchDog();   //"Pulse" the Watchdog timer to keep it "alive" and keep Arduino Mega from being RESET
-
           // Process this request until it completes or times out.
           // Note that this is explicitly limited to handling one request at a time!
 
@@ -738,7 +743,7 @@ void listen()   // Listen for client connection
           while (!parsed && (millis() < endtime) && (bufindex < BUFFER_SIZE))
           {
 
-               if (client.available() > 0)   //Changed 11/15/2016  from if(client.availabe())
+               if (client.available())   
                {
                     buffer[bufindex++] = client.read();
                }
@@ -966,27 +971,6 @@ void listen()   // Listen for client connection
 
                     readFile();
                }
-               else if(strncmp(path, "/500", 4) == 0)
-               {
-
-                    //Restricted file:  "PARSED.TXT."  Attempted access from "Server Files:" results in
-                    //404 File not Found!
-
-                    char *filename = "/PARSED.TXT";
-                    strcpy(MyBuffer, filename);
-
-                    // send a standard http response header
-                    client.println("HTTP/1.1 200 OK");
-                    client.println("Content-Type: text/plain");
-                    client.println("Content-Disposition: attachment");
-                    client.println("Content-Length:");
-                    client.println();
-
-                    fileDownload = 1;   //File download has started
-
-                    readFile();
-
-               }
                else
                {
 
@@ -1022,11 +1006,8 @@ void listen()   // Listen for client connection
 
           Serial.end();
 
-          delay(10);
      }
-
 }
-
 
 //////////////////////////////////////////////////////////////////////
 // Return true if the buffer contains an HTTP request.  Also returns the request
@@ -1136,7 +1117,12 @@ void watchDog()   //for SwitchDoc Labs WDT
      pinMode(RESET_WATCHDOG1, OUTPUT);
      delay(200);
      pinMode(RESET_WATCHDOG1, INPUT);
-
+     
+/*   Serial.begin(115200);
+     Serial.println("\nWDT Pulsed");
+     Serial.end();
+*/
+     
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
