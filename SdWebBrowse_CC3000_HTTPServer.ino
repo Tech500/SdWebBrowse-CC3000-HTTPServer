@@ -207,7 +207,7 @@ void error_P(const char* str)
 void setup(void)
 {
 
-     delay(500);
+     delay(5000);
 
      Serial.begin(115200);
 
