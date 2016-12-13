@@ -20,7 +20,7 @@ Client IP address is returned now.  *** Requires modified Adafruit CC3000 Librar
 Improved flow control --added fileDownload = 1 to Weather section of listen function
 to allow competion of Weather Observation HTML and allow connection to close.
 
-74HC73, pinMode(RESET, INPUT) moved to function minuteCall
+Changed minutecall() to watchDog()
 
 Added another init network() in logtoSD()
 
@@ -145,8 +145,8 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
 uint32_t ip = cc3000.IP2U32(10,0,0,49);
 
 
-#define WLAN_SSID       "Security-22"   // cannot be longer than 32 characters!
-#define WLAN_PASS       "1048acdc7388"
+#define WLAN_SSID       "SSID"   // your SSID, cannot be longer than 32 characters!
+#define WLAN_PASS       "password"   //your wireless network password
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -952,7 +952,8 @@ void listen()   // Listen for client connection
 
                }
                // Check the action to see if it was a GET request.
-               else  if(strncmp(path, "/lucid-2", 8) == 0)
+               else  if(strncmp(path, "/xxxxx", 6) == 0)   //populate "xxxxx" with anything except "ACCESS"
+               //used to restrict; only for administrative use.
                {
                     //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in
                     //404 File not Found!
