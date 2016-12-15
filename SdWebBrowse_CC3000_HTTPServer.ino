@@ -670,7 +670,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           Serial.flush();
           Serial.end();
      }
-
+     listen();
      
 }
 
