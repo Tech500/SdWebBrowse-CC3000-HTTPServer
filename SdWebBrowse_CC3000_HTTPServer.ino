@@ -1,6 +1,6 @@
-/********************************************
+/******************************************** 
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 12/11/2016 21:58 PM EST         ■
+  ■ Updated 12/28/2016 19:19 PM EST         ■
   ■ Using Arduino Mega 2560,                ■
   ■ Adafruit CC3000 Shield, DS1307,         ■
   ■ DHT22, and BMP085.                      ■
@@ -13,18 +13,21 @@
   ■ "Arduino.cc forum," and                 ■
   ■ "Arduino Stack Exchange."               ■
 
-Optimized routine used for resetting the "Status Bit"
+Optimized routine used for resetting the "Status Bit"  lines 307 to 354
 
-Client IP address is returned now.  *** Requires modified Adafruit CC3000 Library ***
+Removed client IP feature 12/20/2016 --observed difficulty connecting to server; taking multiple attempts to connect.  Returned to Adafruit_CC3000 Library.
+No modified files required.
 
 Improved flow control --added fileDownload = 1 to Weather section of listen function
-to allow competion of Weather Observation HTML and allow connection to close.
+to allow competion of Weather Observation HTML and allow connection to close
 
-Changed minutecall() to watchDog()
+Replaced minuteCall() with watchDog()
 
 Added another init network() in logtoSD()
 
 Added listen() to end of init_network(); instances of init_network called from Loop hanging sketch
+
+Added two watchDog() calls to init_network function to keep WDT active
 
 
 ****************************************************/
@@ -114,7 +117,7 @@ float difference;
 #define Q 43 //74LS73 Q 
 #define RESET 38 //74HCT73 RESET
 
-//JP3 goes LOW to reset Arduino Mega
+//JP1 goes LOW to reset Arduino Mega
 
 int value;  //Status of 74HCT73, Q pin  Not set = 0 and if Q is set = 1.
 
@@ -145,8 +148,8 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
 uint32_t ip = cc3000.IP2U32(10,0,0,49);
 
 
-#define WLAN_SSID       "SSID"   // your SSID, cannot be longer than 32 characters!
-#define WLAN_PASS       "password"   //your wireless network password
+#define WLAN_SSID       "Security-22"   // cannot be longer than 32 characters!
+#define WLAN_PASS       "1048acdc7388"
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -207,7 +210,9 @@ void error_P(const char* str)
 void setup(void)
 {
 
-     delay(5000);
+     watchDog();   //added 12/28/2016
+     
+     delay(5000);   //wait for 
 
      Serial.begin(115200);
 
@@ -240,7 +245,7 @@ void setup(void)
      // initialize a FAT volume
      if (!volume.init(&card)) error("vol.init failed!");
 
-     Serial.print("Volume is FAT");
+     Serial.print("\nVolume is FAT");
      Serial.println(volume.fatType(),DEC);
      Serial.println();
 
@@ -301,7 +306,7 @@ void setup(void)
 
 
 
-/////////////// J-K Flip-Flop 74HC73,  Status of Q Monitor ///////////////////////////////////////
+/////////////// J-K Flip-Flop 74HCT73,  Status of Q Monitor ///////////////////////////////////////
 
      delay(10);
 
@@ -322,6 +327,13 @@ void setup(void)
           Serial.println(dtStamp + "  ");
           Serial.println("Listening for connections...  ");
           //Serial.println(value);
+          
+          //Sends LOW to RESET the 74HCT73, JK Flip-flop
+          digitalWrite(RESET, LOW);
+          delay(100);
+          digitalWrite(RESET, HIGH);
+          delay(100);
+          digitalWrite(RESET, LOW);
 
      }
      else
@@ -341,12 +353,7 @@ void setup(void)
           //Serial.println(value);
           
      }
-     //Sends LOW to RESET the 74HC73, JK Flip-flop
-     digitalWrite(RESET, LOW);
-     delay(10);
-     digitalWrite(RESET, HIGH);
-     delay(10);
-     digitalWrite(RESET, LOW);
+     
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -365,18 +372,20 @@ void setup(void)
      RTCTimedEvent.time.year = 2016;
      RTCTimedEvent.writeRTC();
      */
+
      /*
      //initial buffer timer
      RTCTimedEvent.initialCapacity = sizeof(RTCTimerInformation)*3;
 
      //event for every minute
-     RTCTimedEvent.addTimer(TIMER_ANY, //minute
+     RTCTimedEvent.addTimer(.5, //minute
      TIMER_ANY, //hour
      TIMER_ANY, //day fo week
      TIMER_ANY, //day
      TIMER_ANY, //month
      minuteCall);
      */
+  
      // uncomment for different initialization settings
      //dps.init();     // QFE (Field Elevation above ground level) is set to 0 meters.
      // same as init(MODE_STANDARD, 0, true);
@@ -488,8 +497,8 @@ char ListFiles(Adafruit_CC3000_ClientRef client, uint8_t flags, SdFile dir)
 void loop()
 {
 
-     watchDog();   //"Pulse" the Watchdog timer to keep it "alive" and keep Arduino Mega from being RESET
-
+     watchDog();  //Keep SwitchDoc Labs WDT alive; prevents resetting of the Arduino, otherwise WDT generates an Arduino reset
+     
      //  check wireless lan connective --if needed re-establish connection
      if (!cc3000.checkConnected())      // make sure still connected to wireless network
      {
@@ -622,7 +631,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           //Increment Record ID number
           //id++;
           Serial.println("");
-          Serial.print("Data written to logFile  " + dtStamp);
+          Serial.println("\nData written to logFile  " + dtStamp);
           Serial.println("");
 
           logFile.close();
@@ -633,7 +642,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
                SdFile diffFile;
                diffFile.open("Differ.txt", O_WRITE | O_CREAT | O_APPEND);
 
-               if (!diffFile.isOpen()) error("diff");
+               if (!diffFile.isOpen()) error("diff"); 
                {
 
                     Serial.println("");
@@ -657,7 +666,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
                {
 
                     reConnect = "";
-                    reConnect = "Log";
+                    reConnect = "logtoSD";
 
                     if (!init_network())    // reconnect to WLAN
                     {
@@ -668,8 +677,9 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
                
           }
           Serial.flush();
-          Serial.end();
+          Serial.end();    
      }
+     loop();
 }
 
 /////////////////
@@ -747,250 +757,254 @@ void listen()   // Listen for client connection
                }
 
                parsed = parseRequest(buffer, bufindex, action, path);
+               
           }
-         
-          if(parsed)
-          {
-               Serial.begin(115200);
-               Serial.println();
-               getDateTime();
-               Serial.println("Client connected:  " + dtStamp);
-               Serial.println(F("Processing request"));
-               Serial.print(F("Action: "));
-               Serial.println(action);
-               Serial.print(F("Path: "));
-               Serial.println(path);
-
-               getDateTime(); //get accessed date and time
-
-               char ip1String[] = "10.0.0.146";   //Host ip address
-               char ip2String[16] = "";   //client.ip_addr = clientIP[16]
-               snprintf(ip2String, 16, "%d.%d.%d.%d", client.ip_addr[3], client.ip_addr[2], client.ip_addr[1], client.ip_addr[0]);
-
-               Serial.print("Client IP:  ");
-               Serial.println(ip2String);
-
-               // Open a "access.txt" for appended writing.   Client access ip address logged.
-               SdFile logFile;
-               logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
-
-               if (!logFile.isOpen()) error("log");
-
-               if (0 == (strncmp(ip1String, ip2String, 16)))
+               
+               if(parsed)
                {
-                    //Serial.println("addresses match");
-                    exit;
-               }
-               else
-               {
-                    //Serial.println("addresses that do not match ->log client ip address");
+                    
+                    Serial.begin(115200);
+                    Serial.println();
+                    getDateTime();
+                    Serial.println("Client connected:  " + dtStamp);
+                    Serial.println(F("Processing request"));
+                    Serial.print(F("Action: "));
+                    Serial.println(action); 
+                    Serial.print(F("Path: "));
+                    Serial.println(path);
 
-                    logFile.print("Accessed:  ");
-                    logFile.print(dtStamp + " -- ");
-                    logFile.print("Client IP:  ");
-                    logFile.print(ip2String);
-                    logFile.print(" -- ");
-                    logFile.print("Path:  ");
-                    logFile.print(path);
-                    logFile.println("");
-                    logFile.close();
-               }
-               // Check the action to see if it was a GET request.
-               if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.
-               {
+                    /*
+                    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                    //  Requires modified Adafruit_CC3000 Library; not available using Adafruit_CC3000 Library without modifications.
+                    //  to get client IP address
+                    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                    char ip1String[] = "10.0.0.146";   //Host ip address
+                    char ip2String[16] = "";   //client.ip_addr = clientIP[16]
+                    snprintf(ip2String, 16, "%d.%d.%d.%d", client.ip_addr[3], client.ip_addr[2], client.ip_addr[1], client.ip_addr[0]);
 
-                    // First send the success response code.
-                    client.fastrprintln(F("HTTP/1.1 200 OK"));
-                    client.fastrprintln(F("Content-Type: html"));
-                    client.fastrprintln(F("Connnection: close"));
-                    client.fastrprintln(F("Server: Adafruit CC3000"));
-                    // Send an empty line to signal start of body.
-                    client.fastrprintln(F(""));
-                    // Now send the response data.
-                    // output dynamic webpage
-                    client.fastrprintln(F("<!DOCTYPE HTML>"));
-                    client.fastrprintln(F("<html>\r\n"));
-                    client.fastrprintln(F("<body>\r\n"));
-                    client.fastrprintln(F("<head><title>Weather Observations</title></head>"));
-                    // add a meta refresh tag, so the browser pulls again every 15 seconds:
-                    //client.fastrprintln(F("<meta http-equiv=\"refresh\" content=\"15\">"));
-                    client.fastrprintln(F("<h2>Treyburn Lakes</h2><br />"));
-                    client.fastrprintln(F("Indianapolis, IN 46239<br />"));
+                    Serial.print("Client IP:  ");
+                    Serial.println(ip2String);
 
-                    if(lastUpdate != NULL)
+                    // Open a "access.txt" for appended writing.   Client access ip address logged.
+                    SdFile logFile;
+                    logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
+
+                    if (!logFile.isOpen()) error("log");
+
+                    if (0 == (strncmp(ip1String, ip2String, 16)))
                     {
-                         client.println("Last Update:  ");
-                         client.println(lastUpdate);
-                         client.println(" EST <br />");
-                    }
-
-                    client.fastrprintln(F("Humidity:  "));
-                    client.print(h, 2);
-                    client.fastrprint(F(" %<br />"));
-                    client.fastrprintln(F("Dew point:  "));
-                    client.print((dewPoint) + (9/5 +32),1);
-                    client.fastrprint(F(" F. <br />"));
-                    client.fastrprintln(F("Temperature:  "));
-                    client.print(f);
-                    client.fastrprint(F(" F.<br />"));
-                    client.fastrprintln(F("Heat Index:  "));
-                    client.print(hi);
-                    client.fastrprint(F(" F. <br />"));
-                    client.fastrprintln(F("Barometric Pressure:  "));
-                    client.print(currentPressure);
-                    client.fastrprint(F(" in. Hg.<br />"));
-
-                    if (pastPressure == currentPressure)
-                    {
-                         client.println(difference, 3);
-                         client.fastrprint(F(" Difference in. Hg <br />"));
+                         //Serial.println("addresses match");
+                         exit;
                     }
                     else
                     {
-                         client.println(difference, 3);
-                         client.fastrprint(F(" Difference in. Hg <br />"));
+                         //Serial.println("addresses that do not match ->log client ip address");
+
+                         logFile.print("Accessed:  ");
+                         logFile.print(dtStamp + " -- ");
+                         logFile.print("Client IP:  ");
+                         logFile.print(ip2String);
+                         logFile.print(" -- ");
+                         logFile.print("Path:  ");
+                         logFile.print(path);
+                         logFile.println("");
+                         logFile.close();
                     }
+                    exit;
+                    */
+                    //////////////////////////////////////////////////////////////////////////////////////
 
-                    client.fastrprintln(F("Barometric Pressure:  "));
-                    client.println(milliBars);
-                    client.fastrprintln(F(" mb.<br />"));
-                    client.fastrprintln(F("Atmosphere:  "));
-                    client.print(Pressure * 0.00000986923267, 3);   //Convert Pascals to Atm (atmospheric pressure)
-                    client.fastrprint(F(" atm <br />"));
-                    client.fastrprintln(F("Altitude:  "));
-                    client.print(Altitude * 0.0328084, 2);  //Convert cm to Feet
-                    client.fastrprint(F(" Feet<br />"));
-                    client.fastrprintln(F("<br /><br />"));
-                    client.fastrprintln(F("<h2>Collected Observations</h2>"));
-                    client.println("<a href=http://69.245.183.113:8001/log.txt download>Current Week Observations</a><br />");
-                    client.fastrprintln(F("<br />\r\n"));
-                    client.println("<a href=http://69.245.183.113:8001/SdBrowse >Weekly Data Files</a><br />");
-                    client.fastrprintln(F("<br />\r\n"));
-                    client.println("<a href=http://69.245.183.113:8001/README.TXT download>Server:  README</a><br />");
-                    client.fastrprintln(F("<body />\r\n"));
-                    client.fastrprintln(F("<br />\r\n"));
-                    client.fastrprintln(F("</html>\r\n"));
-
-               }
-               // Check the action to see if it was a GET request.
-               else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.
-               {
-
-                    fileDownload = 1;
-
-                    // send a standard http response header
-                    client.println("HTTP/1.1 200 OK");
-                    client.println("Content-Type: text/html");
-                    client.println();
-                    client.println("<!DOCTYPE HTML>");
-                    client.println("<html>\r\n");
-                    client.println("<body>\r\n");
-                    client.println("<head><title>SDBrowse</title><head />");
-                    // print all the files, use a helper to keep it clean
-                    client.println("<h2>Server Files:</h2>");
-                    ListFiles(client, LS_SIZE, root);
-                    client.println("<body />\r\n");
-                    client.println("<br />\r\n");
-                    client.println("</html>\r\n");
-
-                    fileDownload = 0;
-
-               }
-               else if((strncmp(path, "/LOG", 4) == 0) ||  (strcmp(path, "/ACCESS.TXT") == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0))  // Respond with the path that was accessed.
-               {
-
-                    fileDownload = 1;   //File download has started; used to stop logFile from logging during download
-
-                    char *filename;
-                    char name;
-                    strcpy( MyBuffer, path );
-                    filename = &MyBuffer[1];
-
-                    if ((strncmp(path, "/SYSTEM~1", 9) == 0) || (strncmp(path, "/ACCESS", 7) == 0))
+                    // Check the action to see if it was a GET request.
+                    if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.
                     {
 
+                         // First send the success response code.
+                         client.fastrprintln(F("HTTP/1.1 200 OK"));
+                         client.fastrprintln(F("Content-Type: html"));
+                         client.fastrprintln(F("Connnection: close"));
+                         client.fastrprintln(F("Server: Adafruit CC3000"));
+                         // Send an empty line to signal start of body.
+                         client.fastrprintln(F(""));
+                         // Now send the response data.
+                         // output dynamic webpage
+                         client.fastrprintln(F("<!DOCTYPE HTML>"));
+                         client.fastrprintln(F("<html>\r\n"));
+                         client.fastrprintln(F("<body>\r\n"));
+                         client.fastrprintln(F("<head><title>Weather Observations</title></head>"));
+                         // add a meta refresh tag, so the browser pulls again every 15 seconds:
+                         //client.fastrprintln(F("<meta http-equiv=\"refresh\" content=\"15\">"));
+                         client.fastrprintln(F("<h2>Treyburn Lakes</h2><br />"));
+                         client.fastrprintln(F("Indianapolis, IN 46239<br />"));
+
+                         if(lastUpdate != NULL)
+                         {
+                              client.println("Last Update:  ");
+                              client.println(lastUpdate);
+                              client.println(" EST <br />");
+                         }
+
+                         client.fastrprintln(F("Humidity:  "));
+                         client.print(h, 2); 
+                         client.fastrprint(F(" %<br />"));
+                         client.fastrprintln(F("Dew point:  "));
+                         client.print((dewPoint) + (9/5 +32),1);
+                         client.fastrprint(F(" F. <br />"));
+                         client.fastrprintln(F("Temperature:  "));
+                         client.print(f);
+                         client.fastrprint(F(" F.<br />"));
+                         client.fastrprintln(F("Heat Index:  "));
+                         client.print(hi);
+                         client.fastrprint(F(" F. <br />"));
+                         client.fastrprintln(F("Barometric Pressure:  "));
+                         client.print(currentPressure);
+                         client.fastrprint(F(" in. Hg.<br />"));
+
+                         if (pastPressure == currentPressure)
+                         {
+                              client.println(difference, 3);
+                              client.fastrprint(F(" Difference in. Hg <br />"));
+                         }
+                         else
+                         {
+                              client.println(difference, 3);
+                              client.fastrprint(F(" Difference in. Hg <br />"));
+                         }
+
+                         client.fastrprintln(F("Barometric Pressure:  "));
+                         client.println(milliBars);
+                         client.fastrprintln(F(" mb.<br />"));
+                         client.fastrprintln(F("Atmosphere:  "));
+                         client.print(Pressure * 0.00000986923267, 3);   //Convert Pascals to Atm (atmospheric pressure)
+                         client.fastrprint(F(" atm <br />"));
+                         client.fastrprintln(F("Altitude:  "));
+                         client.print(Altitude * 0.0328084, 2);  //Convert cm to Feet
+                         client.fastrprint(F(" Feet<br />"));
+                         client.fastrprintln(F("<br /><br />"));
+                         client.fastrprintln(F("<h2>Collected Observations</h2>"));
+                         client.println("<a href=http://69.245.183.113:8001/LOG.TXT download>Current Week Observations</a><br />");
+                         client.fastrprintln(F("<br />\r\n"));
+                         client.println("<a href=http://69.245.183.113:8001/SdBrowse >Weekly Data Files</a><br />");
+                         client.fastrprintln(F("<br />\r\n"));
+                         client.println("<a href=http://69.245.183.113:8001/README.TXT download>Server:  README</a><br />");
+                         client.fastrprintln(F("<body />\r\n"));
+                         client.fastrprintln(F("<br />\r\n"));
+                         client.fastrprintln(F("</html>\r\n"));
+
+                    }
+                    // Check the action to see if it was a GET request.
+                    else if (strcmp(path, "/SdBrowse") == 0) // Respond with the path that was accessed.
+                    {
+
+                         fileDownload = 1;
+
+                         // send a standard http response header
+                         client.println("HTTP/1.1 200 OK");
+                         client.println("Content-Type: text/html");
+                         client.println();
+                         client.println("<!DOCTYPE HTML>");
+                         client.println("<html>\r\n");
+                         client.println("<body>\r\n");
+                         client.println("<head><title>SDBrowse</title><head />");
+                         // print all the files, use a helper to keep it clean
+                         client.println("<h2>Server Files:</h2>");
+                         ListFiles(client, LS_SIZE, root);
+                         client.println("<body />\r\n");
+                         client.println("<br />\r\n");
+                         client.println("</html>\r\n");
+
+                         fileDownload = 0;
+
+                    }
+                    else if((strncmp(path, "/LOG", 4) == 0) ||  (strcmp(path, "/ACCESS.TXT") == 0) || (strcmp(path, "/DIFFER.TXT") == 0)|| (strcmp(path, "/SERVER.TXT") == 0) || (strcmp(path, "/README.TXT") == 0))  // Respond with the path that was accessed.
+                    {
+
+                         fileDownload = 1;   //File download has started; used to stop logFile from logging during download
+
+                         char *filename;
+                         char name;
+                         strcpy( MyBuffer, path );
+                         filename = &MyBuffer[1];
+
+                         if ((strncmp(path, "/SYSTEM~1", 9) == 0) || (strncmp(path, "/ACCESS", 7) == 0))
+                         {
+
+                              client.println("HTTP/1.1 404 Not Found");
+                              client.println("Content-Type: text/html");
+                              client.println();
+                              client.println("<h2>404</h2>\r\n");
+                              delay(250);
+                              client.println("<h2>File Not Found!</h2>\r\n");
+
+                         }
+                         else if(file.isDir())
+                         {
+
+                              client.println("HTTP/1.1 200 OK");
+                              client.println("Content-Type: text/html");
+                              client.println();
+                              client.print("<h2>Files in /");
+                              client.print(name);
+                              client.println("/:</h2>");
+                              ListFiles(client,LS_SIZE,file);
+                              file.close();
+
+                         }
+                         else
+                         {
+
+                              client.println("HTTP/1.1 200 OK");
+                              client.println("Content-Type: text/plain");
+                              client.println("Content-Disposition: attachment");
+                              client.println("Content-Length:");
+                              client.println("Connnection: close");
+                              client.println();
+
+                              readFile(); 
+
+                         }
+
+                    }
+                    // Check the action to see if it was a GET request.
+                    else  if(strncmp(path, "/Blue2", 8) == 0)
+                    {
+                         //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in
+                         //404 File not Found!
+
+                         char *filename = "/ACCESS.TXT";
+                         strcpy(MyBuffer, filename);
+
+                         // send a standard http response header
+                         client.println("HTTP/1.1 200 OK");
+                         client.println("Content-Type: text/plain");
+                         client.println("Content-Disposition: attachment");
+                         client.println("Content-Length:");
+                         client.println();
+
+                         fileDownload = 1;   //File download has started
+
+                         readFile();
+                    }
+                    else
+                    {
+
+                         delay(1000);
+
+                         // everything else is a 404
                          client.println("HTTP/1.1 404 Not Found");
                          client.println("Content-Type: text/html");
                          client.println();
                          client.println("<h2>404</h2>\r\n");
                          delay(250);
                          client.println("<h2>File Not Found!</h2>\r\n");
-
                     }
-                    else if(file.isDir())
-                    {
-
-                         client.println("HTTP/1.1 200 OK");
-                         client.println("Content-Type: text/html");
-                         client.println();
-                         client.print("<h2>Files in /");
-                         client.print(name);
-                         client.println("/:</h2>");
-                         ListFiles(client,LS_SIZE,file);
-                         file.close();
-
-                    }
-                    else
-                    {
-
-                         client.println("HTTP/1.1 200 OK");
-                         client.println("Content-Type: text/plain");
-                         client.println("Content-Disposition: attachment");
-                         client.println("Content-Length:");
-                         client.println("Connnection: close");
-                         client.println();
-
-                         Serial.begin(115200);
-                         Serial.println(&MyBuffer[1]);
-                         Serial.end();
-
-                         readFile();
-
-                    }
-
-               }
-               // Check the action to see if it was a GET request.
-               else  if(strncmp(path, "/xxxxx", 6) == 0)   //populate "xxxxx" with anything except "ACCESS"
-               //used to restrict; only for administrative use.
-               {
-                    //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in
-                    //404 File not Found!
-
-                    char *filename = "/ACCESS.TXT";
-                    strcpy(MyBuffer, filename);
-
-                    // send a standard http response header
-                    client.println("HTTP/1.1 200 OK");
-                    client.println("Content-Type: text/plain");
-                    client.println("Content-Disposition: attachment");
-                    client.println("Content-Length:");
-                    client.println();
-
-                    fileDownload = 1;   //File download has started
-
-                    readFile();
                }
                else
                {
-
-                    delay(1000);
-
-                    // everything else is a 404
-                    client.println("HTTP/1.1 404 Not Found");
-                    client.println("Content-Type: text/html");
-                    client.println();
-                    client.println("<h2>404</h2>\r\n");
-                    delay(250);
-                    client.println("<h2>File Not Found!</h2>\r\n");
+                    // Unsupported action, respond with an HTTP 405 method not allowed error.
+                    client.fastrprintln(F("HTTP/1.1 405 Method Not Allowed"));
+                    client.fastrprintln(F(""));
                }
-          }
-          else
-          {
-               // Unsupported action, respond with an HTTP 405 method not allowed error.
-               client.fastrprintln(F("HTTP/1.1 405 Method Not Allowed"));
-               client.fastrprintln(F(""));
-          }
-
+               
           // Wait a short period to make sure the response had time to send before
           // the connection is closed (the CC3000 sends data asyncronously).
 
@@ -1005,6 +1019,22 @@ void listen()   // Listen for client connection
 
           Serial.end();
 
+     }
+     
+     //cc3000.disconnect();   //Used to test init_network()  --Leave commented out otherwise
+               
+     //  check wireless lan connective --if needed re-establish connection
+     if (!cc3000.checkConnected())      // make sure still connected to wireless network
+     {
+
+          reConnect = "";
+          reConnect = "Listen";
+
+          if (!init_network())    // reconnect to WLAN
+          {
+               delay(15 * 1000); // if no connection, try again later
+               return;
+          }
      }
 }
 
@@ -1086,7 +1116,11 @@ void readFile()
           if (count)
           {
                if (client.connected())
+               {
                     client.write( buffers, count);
+                    watchDog();
+                    
+               }
                else
                {
                     dload_Cancel = true;
@@ -1108,19 +1142,20 @@ void readFile()
 
 }
 ///////////////
-void watchDog()   //for SwitchDoc Labs WDT
+void watchDog()    //Keep "alive" for SwitchDoc Labs, "Dual WatchDog Timer"
 {
 
-     //Sends pulse to keep external "SwitchDoc Labs, Dual Watchdog Timer" from RESET
+     //Sends pulse  every minute to keep external "SwitchDoc Labs, Dual Watchdog Timer" from resetting Arduino Mega
 
      pinMode(RESET_WATCHDOG1, OUTPUT);
      delay(200);
      pinMode(RESET_WATCHDOG1, INPUT);
-     
-/*   Serial.begin(115200);
+
+     /*
+     Serial.begin(115200);
      Serial.println("\nWDT Pulsed");
      Serial.end();
-*/
+     */
      
 }
 
@@ -1352,8 +1387,6 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 
      Adafruit_CC3000_Client  client = cc3000.connectTCP(ip, LISTEN_PORT);   //Guard --  re-initalize WLAN connectivity
 
-     getDateTime();
-
      Serial.println("Reconnecting to WLAN:  " + dtStamp +" Called from:  " + reConnect);
      cc3000.reboot();
 
@@ -1368,7 +1401,7 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 
           serverFile.print("Reconnecting to Wireless LAN:  " + dtStamp + "  ");
           serverFile.println(reConnect);  //Log where "init_network" was called from in the Sketch
-          serverFile.close();
+          
      }
      else
      {
@@ -1388,6 +1421,8 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
      Serial.print(F("\nAttempting to connect to "));
      Serial.println(ssid);
 
+     //Keep SwitchDoc Labs, WDT alive
+     watchDog();
 
      if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY))
      {
@@ -1395,7 +1430,7 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
           while(1);
           return -1;
      }
-
+     
      delay(15 * 1000);
 
      Serial.println(F("Connecting to Wireless Network!"));
@@ -1413,15 +1448,23 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
      }
 
      httpServer.begin();
+     
+     //Keep SwitchDoc Labs, WDT alive
+     watchDog();
+     
+     getDateTime();
 
      Serial.println("");
      Serial.println("Server Started --init Network");
      Serial.println("Connected to Wireless LAN:  " + dtStamp);
+     serverFile.println("Connected to Wireless LAN: " + dtStamp + "  ");
      Serial.println("");
      Serial.println(F("Listening for connections..."));
      Serial.println("");
 
      Serial.end();
+     
+     serverFile.close();
 
      listen();
 
