@@ -12,9 +12,9 @@ Features:
 
 4.	Log.txt file is appended every 15 minutes with the latest update; storing data from Dynamic web page.
 
-5.	Access.txt stores Client ip address; special Ethernet.h file. Web link provided in source code.
+5.	Access.txt stores Client ip address; administrative file -restricted access.
 
-6.	Differ.txt store the difference in barometric pressure for the last fifteen minutes. Only a difference of equal to or greater than .020 inches of Mercury are logged with difference, date and time.
+6.	Differ.txt stores the difference in barometric pressure for the last fifteen minutes. Only a difference of equal to or greater than .020 inches of Mercury are logged with difference, date and time.
 
 7.	Server.txt is used only with wireless version of Sketch; records Restart of server from lost of wireless connectivity (not all lost connectivity is recoverable; high percentage is recoverable.)
 
@@ -27,7 +27,7 @@ I am interested in sudden drop of Barometric pressure in a 15 minute interval. S
 
 11.	Added "SwitchDoc Labs, Dual Watchdog Timer" to project; resets Arduino Mega in case sketch execution fails..
 
-12.	Added a 74HC73, JK Flip-flop to log "Dual Watchdog Timer" reset to file on SD Card.
+12.	Added a 74HCT73, J-K Flip-flop to create a "One Bit Status Memory."  See schematic.
 
 13.	Added fileRead function; consolidating code for doing file reads,
 
