@@ -1,6 +1,6 @@
 /******************************************** 
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 12/28/2016 19:19 PM EST         ■
+  ■ Updated 01/07/2017 11:53 AM EST         ■
   ■ Using Arduino Mega 2560,                ■
   ■ Adafruit CC3000 Shield, DS1307,         ■
   ■ DHT22, and BMP085.                      ■
@@ -114,8 +114,8 @@ float milliBars;
 float difference;
 
 #define RESET_WATCHDOG1 33 //SwitchDoc Labs external Watchdog Dual Timer, JP7
-#define Q 43 //74LS73 Q 
-#define RESET 38 //74HCT73 RESET
+#define Q 43 //74HCT73 Q 
+#define RESET 38 //74HCT73 Clear
 
 //JP1 goes LOW to reset Arduino Mega
 
@@ -229,8 +229,12 @@ void setup(void)
      dht.begin();
 
      lcd.init();
-
-     value = digitalRead(Q);  //Status of 74HC73, Q Output, value = 1 --if Q is HIGH
+     
+     value = digitalRead(Q);  //Status of 74HCT73, Q Output, value = 1 --if Q is HIGH
+     
+     getDateTime();
+     
+     Serial.println("\nRESET has occured:  " + dtStamp);
 
      //Serial.print("Free RAM: ");
      //Serial.println(FreeRam());
@@ -308,7 +312,7 @@ void setup(void)
 
 /////////////// J-K Flip-Flop 74HCT73,  Status of Q Monitor ///////////////////////////////////////
 
-     delay(10);
+     delay(100);
 
      getDateTime();
 
@@ -630,10 +634,8 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           logFile.println();
           //Increment Record ID number
           //id++;
-          Serial.println("");
           Serial.println("\nData written to logFile  " + dtStamp);
-          Serial.println("");
-
+          
           logFile.close();
 
           if(abs(difference) >= .020)  //After testing and observations of Data; raised from .010 to .020 inches of Mecury
@@ -679,7 +681,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           Serial.flush();
           Serial.end();    
      }
-     loop();
+     listen();
 }
 
 /////////////////
@@ -782,13 +784,15 @@ void listen()   // Listen for client connection
                     char ip2String[16] = "";   //client.ip_addr = clientIP[16]
                     snprintf(ip2String, 16, "%d.%d.%d.%d", client.ip_addr[3], client.ip_addr[2], client.ip_addr[1], client.ip_addr[0]);
 
-                    Serial.print("Client IP:  ");
-                    Serial.println(ip2String);
+                    //Serial.print("Client IP:  ");
+                    //Serial.println(ip2String);
+                    */
 
                     // Open a "access.txt" for appended writing.   Client access ip address logged.
                     SdFile logFile;
                     logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
 
+                    /*
                     if (!logFile.isOpen()) error("log");
 
                     if (0 == (strncmp(ip1String, ip2String, 16)))
@@ -798,20 +802,21 @@ void listen()   // Listen for client connection
                     }
                     else
                     {
+                    */
                          //Serial.println("addresses that do not match ->log client ip address");
 
                          logFile.print("Accessed:  ");
-                         logFile.print(dtStamp + " -- ");
-                         logFile.print("Client IP:  ");
-                         logFile.print(ip2String);
-                         logFile.print(" -- ");
+                         logFile.print(dtStamp + " , ");
+                         //logFile.print("Client IP:  ");
+                         //logFile.print(ip2String);
+                         //logFile.print(" -- ");
                          logFile.print("Path:  ");
                          logFile.print(path);
                          logFile.println("");
                          logFile.close();
-                    }
+                    //}
                     exit;
-                    */
+                   
                     //////////////////////////////////////////////////////////////////////////////////////
 
                     // Check the action to see if it was a GET request.
@@ -908,6 +913,8 @@ void listen()   // Listen for client connection
                          // print all the files, use a helper to keep it clean
                          client.println("<h2>Server Files:</h2>");
                          ListFiles(client, LS_SIZE, root);
+                         client.println("\n<a href=http://69.245.183.113:8001/Weather    >Current Observations</a><br />");
+                         client.fastrprintln(F("<br />\r\n"));
                          client.println("<body />\r\n");
                          client.println("<br />\r\n");
                          client.println("</html>\r\n");
@@ -965,7 +972,7 @@ void listen()   // Listen for client connection
 
                     }
                     // Check the action to see if it was a GET request.
-                    else  if(strncmp(path, "/Blue2", 8) == 0)
+                    else  if(strncmp(path, "/Blueace", 8) == 0)
                     {
                          //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in
                          //404 File not Found!
@@ -1438,7 +1445,7 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
 
      while (!cc3000.checkDHCP())
      {
-          delay(100);
+          delay(100); 
      }
 
      // Display the IP address DNS, Gateway, etc.
@@ -1465,8 +1472,6 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
      Serial.end();
      
      serverFile.close();
-
-     listen();
 
 }
 
@@ -1497,8 +1502,4 @@ bool displayConnectionDetails()
           return true;
      }
 }
-
-
-
-
 
