@@ -980,7 +980,7 @@ void listen()   // Listen for client connection
 
                     }
                     // Check the action to see if it was a GET request.
-                    else  if(strncmp(path, "/Foxtrot", 8) == 0)
+                    else  if(strncmp(path, "/Orange", 8) == 0)
                     {
                          //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in
                          //404 File not Found!
