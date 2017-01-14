@@ -1,6 +1,6 @@
 /******************************************** 
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 01/07/2017 11:53 AM EST         ■
+  ■ Updated 01/13/2017 20:12 PM EST         ■
   ■ Using Arduino Mega 2560,                ■
   ■ Adafruit CC3000 Shield, DS1307,         ■
   ■ DHT22, and BMP085.                      ■
@@ -575,13 +575,15 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
 
      Serial.begin(115200);
 
-     if((fileDownload) == 1)   //File download has started
+     if(fileDownload == 1)   //File download has started
      {
           exit;   //Skip logging this time --file download in progress
      }
      else
      {
 
+          fileDownload = 1;
+          
           // Open a "log.txt" for appended writing
           SdFile logFile;
           logFile.open("log.txt", O_WRITE | O_CREAT | O_APPEND);
@@ -637,6 +639,8 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           Serial.println("\nData written to logFile  " + dtStamp);
           
           logFile.close();
+          
+          fileDownload = 0;
 
           if(abs(difference) >= .020)  //After testing and observations of Data; raised from .010 to .020 inches of Mecury
           {
@@ -753,7 +757,7 @@ void listen()   // Listen for client connection
           while (!parsed && (millis() < endtime) && (bufindex < BUFFER_SIZE))
           {
 
-               if (client.available())   
+               if (client.available())
                {
                     buffer[bufindex++] = client.read();
                }
@@ -823,6 +827,8 @@ void listen()   // Listen for client connection
                     if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.
                     {
 
+                         fileDownload = 1;
+                         
                          // First send the success response code.
                          client.fastrprintln(F("HTTP/1.1 200 OK"));
                          client.fastrprintln(F("Content-Type: html"));
@@ -894,6 +900,8 @@ void listen()   // Listen for client connection
                          client.fastrprintln(F("<body />\r\n"));
                          client.fastrprintln(F("<br />\r\n"));
                          client.fastrprintln(F("</html>\r\n"));
+                         
+                         fileDownload = 0;
 
                     }
                     // Check the action to see if it was a GET request.
@@ -972,7 +980,7 @@ void listen()   // Listen for client connection
 
                     }
                     // Check the action to see if it was a GET request.
-                    else  if(strncmp(path, "/Blueace", 8) == 0)
+                    else  if(strncmp(path, "/Foxtrot", 8) == 0)
                     {
                          //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in
                          //404 File not Found!
@@ -1126,7 +1134,6 @@ void readFile()
                {
                     client.write( buffers, count);
                     watchDog();
-                    
                }
                else
                {
@@ -1472,6 +1479,8 @@ int8_t init_network()   //Guard connection  --restart wireless connection if con
      Serial.end();
      
      serverFile.close();
+     
+     loop();
 
 }
 
@@ -1502,4 +1511,8 @@ bool displayConnectionDetails()
           return true;
      }
 }
+
+
+
+
 
