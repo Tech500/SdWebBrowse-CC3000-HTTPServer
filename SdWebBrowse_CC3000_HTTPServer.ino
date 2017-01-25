@@ -1,6 +1,6 @@
 /******************************************** 
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 01/13/2017 20:12 PM EST         ■
+  ■ Updated 01/24/2017 19:11 PM EST         ■
   ■ Using Arduino Mega 2560,                ■
   ■ Adafruit CC3000 Shield, DS1307,         ■
   ■ DHT22, and BMP085.                      ■
@@ -210,11 +210,15 @@ void error_P(const char* str)
 void setup(void)
 {
 
+     getDateTime();
+     
      watchDog();   //added 12/28/2016
      
-     delay(5000);   //wait for 
+     delay(1000 * 20);   //wait for Serial Monitor
 
      Serial.begin(115200);
+     
+     Serial.println("\nRESET has occured:  " + dtStamp);
 
      pinMode(sonalertPin, OUTPUT);  //Used for Piezo buzzer
 
@@ -232,10 +236,6 @@ void setup(void)
      
      value = digitalRead(Q);  //Status of 74HCT73, Q Output, value = 1 --if Q is HIGH
      
-     getDateTime();
-     
-     Serial.println("\nRESET has occured:  " + dtStamp);
-
      //Serial.print("Free RAM: ");
      //Serial.println(FreeRam());
 
@@ -725,7 +725,7 @@ void listen()   // Listen for client connection
      {
 
           reConnect = "";
-          reConnect = "Listen";
+          reConnect = "Listen-1";
 
           if (!init_network())    // reconnect to WLAN
           {
@@ -980,7 +980,7 @@ void listen()   // Listen for client connection
 
                     }
                     // Check the action to see if it was a GET request.
-                    else  if(strncmp(path, "/Orange", 8) == 0)
+                    else  if(strncmp(path, "/Foxtrot", 8) == 0)
                     {
                          //Restricted file:  "ACCESS.TXT."  Attempted access from "Server Files:" results in
                          //404 File not Found!
@@ -1043,7 +1043,7 @@ void listen()   // Listen for client connection
      {
 
           reConnect = "";
-          reConnect = "Listen";
+          reConnect = "Listen-2";
 
           if (!init_network())    // reconnect to WLAN
           {
@@ -1132,10 +1132,19 @@ void readFile()
           {
                if (client.connected())
                {
-                    client.write( buffers, count);
-                    watchDog();
+                    
+                    int countLoop;
+                    for (countLoop = 0; countLoop < 200; countLoop++);
+                    {
+                         client.write( buffers, count);
+                     
+                         if (countLoop == 199)
+                         {
+                              watchDog();   //Prevent WDT from causing Arduino RESET during download
+                         }           
+                    }
                }
-               else
+               else               
                {
                     dload_Cancel = true;
                     break;
