@@ -45,7 +45,7 @@ Added watchDog() call to fileRead function after sending 1000 client.writes to k
 // *********************************************************************************
 
 #include <Adafruit_CC3000.h>   //https://github.com/adafruit/Adafruit_CC3000_Library
-#include <Adafruit_CC3000_Server.h>   //https://github.com/adafruit/Adafruit_CC3000_Library (Modified file to aquire clientIP)
+#include <Adafruit_CC3000_Server.h>   //https://github.com/adafruit/Adafruit_CC3000_Library 
 #include "utility/debug.h"   //https://github.com/adafruit/Adafruit_CC3000_Library
 #include <SdFat.h>   //https://github.com/greiman/SdFat
 #include <SdFile.h>   //https://github.com/greiman/SdFat
