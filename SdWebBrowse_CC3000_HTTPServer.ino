@@ -1,6 +1,6 @@
 /******************************************** 
   ■ SdWebBrowse_CC3000_HTTPServer.ino       ■
-  ■ Updated 01/26/2017 05:18 PM EST         ■
+  ■ Updated 02/05/2017 @ 14:59 PM EST       ■
   ■ Using Arduino Mega 2560,                ■
   ■ Adafruit CC3000 Shield, DS1307,         ■
   ■ DHT22, and BMP085.                      ■
@@ -45,7 +45,7 @@ Added watchDog() call to fileRead function after sending 1000 client.writes to k
 // *********************************************************************************
 
 #include <Adafruit_CC3000.h>   //https://github.com/adafruit/Adafruit_CC3000_Library
-#include <Adafruit_CC3000_Server.h>   //https://github.com/adafruit/Adafruit_CC3000_Library 
+#include <Adafruit_CC3000_Server.h>   //https://github.com/adafruit/Adafruit_CC3000_Library (Modified file to aquire clientIP)
 #include "utility/debug.h"   //https://github.com/adafruit/Adafruit_CC3000_Library
 #include <SdFat.h>   //https://github.com/greiman/SdFat
 #include <SdFile.h>   //https://github.com/greiman/SdFat
@@ -331,6 +331,7 @@ void setup(void)
           Serial.print("Watchdog RESET  ");
           Serial.println(dtStamp + "  ");
           Serial.println("Listening for connections...  ");
+          Serial.println("");
           //Serial.println(value);
           
           //Sends LOW to RESET the 74HCT73, JK Flip-flop
@@ -355,6 +356,7 @@ void setup(void)
           Serial.print("Manual RESET  ");
           Serial.println(dtStamp + "  ");
           Serial.println("Listening for connections...  ");
+          Serial.println("");
           //Serial.println(value);
           
      }
@@ -629,7 +631,7 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           logFile.print(milliBars,3);  //Convert Pascals to millibars
           logFile.print(" millibars ");
           logFile.print(" , ");
-          logFile.print((Pressure * 0.00000986923267), 3);   //Convert Pascals to Atm (atmospheric pressure)
+          logFile.print((Pressure * 0.00000986923267), 3);   //Convert Pascals to Atm (atmospheric pressure)  
           logFile.print(" atm ");
           logFile.print(" , ");
           logFile.print(Altitude * 0.0328084);  //Convert cm to Feet
@@ -637,9 +639,10 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
           logFile.println();
           //Increment Record ID number
           //id++;
-          Serial.println("\nData written to logFile  " + dtStamp);
+          Serial.println("Data written to logFile  " + dtStamp);
+          Serial.println("");
           
-          logFile.close();
+          logFile.close(); 
           
           fileDownload = 0;
 
@@ -666,20 +669,6 @@ void logtoSD()   //Output to SD Card every fifthteen minutes
 
                     beep(50);  //Duration of Sonalert tone
 
-               }
-               
-               //  check wireless lan connective --if needed re-establish connection
-               if (!cc3000.checkConnected())      // make sure still connected to wireless network
-               {
-
-                    reConnect = "";
-                    reConnect = "logtoSD";
-
-                    if (!init_network())    // reconnect to WLAN
-                    {
-                         delay(15 * 1000); // if no connection, try again later
-                         return;
-                    }
                }
                
           }
@@ -712,13 +701,15 @@ void lcdDisplay()   //   LCD 1602 Display function
 }
 
 /////////////
-void listen()   // Listen for client connection
+void listen()   // Listen for client connection        
 {
 
 
 
      fileDownload = 0;   //No file being downloaded
-
+     
+     Serial.begin(115200);
+     
      Adafruit_CC3000_ClientRef client = httpServer.available();
 
      while(client.connected())
@@ -761,60 +752,30 @@ void listen()   // Listen for client connection
                     if(parsed)
                     {
                          
-                         Serial.begin(115200);
-                         Serial.println();
                          getDateTime();
+                         
                          Serial.println("Client connected:  " + dtStamp);
                          Serial.println(F("Processing request"));
                          Serial.print(F("Action: "));
                          Serial.println(action); 
                          Serial.print(F("Path: "));
                          Serial.println(path);
-
-                         /*
-                         /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                         //  Requires modified Adafruit_CC3000 Library; not available using Adafruit_CC3000 Library without modifications.
-                         //  to get client IP address
-                         /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                         char ip1String[] = "10.0.0.146";   //Host ip address
-                         char ip2String[16] = "";   //client.ip_addr = clientIP[16]
-                         snprintf(ip2String, 16, "%d.%d.%d.%d", client.ip_addr[3], client.ip_addr[2], client.ip_addr[1], client.ip_addr[0]);
-
-                         //Serial.print("Client IP:  ");
-                         //Serial.println(ip2String);
-                         */
-
+                         
                          // Open a "access.txt" for appended writing.   Client access ip address logged.
                          SdFile logFile;
                          logFile.open("access.txt", O_WRITE | O_CREAT | O_APPEND);
 
-                         /*
-                         if (!logFile.isOpen()) error("log");
+                              if (!logFile.isOpen()) error("log");
 
-                         if (0 == (strncmp(ip1String, ip2String, 16)))
-                         {
-                              //Serial.println("addresses match");
-                              exit;
-                         }
-                         else
-                         {
-                         */
-                              //Serial.println("addresses that do not match ->log client ip address");
-
-                              logFile.print("Accessed:  ");
-                              logFile.print(dtStamp + " , ");
-                              //logFile.print("Client IP:  ");
-                              //logFile.print(ip2String);
-                              //logFile.print(" -- ");
-                              logFile.print("Path:  ");
-                              logFile.print(path);
-                              logFile.println("");
-                              logFile.close();
-                         //}
-                         exit;
+                                   logFile.print("Accessed:  ");
+                                   logFile.print(dtStamp + " , ");
+                                   logFile.print("Path:  ");
+                                   logFile.print(path);
+                                   logFile.println("");
+                                   logFile.close();
+                              
+                         
                         
-                         //////////////////////////////////////////////////////////////////////////////////////
-
                          // Check the action to see if it was a GET request.
                          if (strncmp(path, "/Weather", 8) == 0)   // Respond with the path that was accessed.
                          {
@@ -1016,7 +977,7 @@ void listen()   // Listen for client connection
                // the connection is closed (the CC3000 sends data asyncronously).
 
                delay(10);
-
+               
                Serial.begin(115200);
 
                // Close the connection when done.
@@ -1024,6 +985,7 @@ void listen()   // Listen for client connection
                Serial.println("Client closed");
                Serial.println("");
 
+               Serial.flush();
                Serial.end();
 
           }
