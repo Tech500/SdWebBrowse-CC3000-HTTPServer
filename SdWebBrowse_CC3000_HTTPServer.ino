@@ -149,8 +149,8 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
 uint32_t ip = cc3000.IP2U32(10,0,0,49);
 
 
-#define WLAN_SSID       "Security-22"   // cannot be longer than 32 characters!
-#define WLAN_PASS       "1048acdc7388"
+#define WLAN_SSID       "YourSSID"   // cannot be longer than 32 characters!
+#define WLAN_PASS       "YourSSIDPassword"
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
